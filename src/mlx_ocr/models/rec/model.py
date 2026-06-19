@@ -10,6 +10,11 @@ import mlx.core as mx
 import mlx.nn as nn
 
 from mlx_ocr.hub.download import HubArtifacts
+from mlx_ocr.hub.rec_weight_patch import (
+    RecognitionWeightSource,
+    load_patched_recognition_tensors,
+    resolve_recognition_weight_source,
+)
 from mlx_ocr.hub.weights import (
     WeightMapper,
     align_tensor_to_parameter,
@@ -219,16 +224,47 @@ class RecognitionModel(nn.Module):
         return self.head(sequence)
 
     @classmethod
-    def from_artifacts(cls, artifacts: HubArtifacts) -> RecognitionModel:
-        """Construct a recognition model from Hub artifacts."""
+    def from_artifacts(
+        cls,
+        artifacts: HubArtifacts,
+        *,
+        weight_source: RecognitionWeightSource = "auto",
+    ) -> RecognitionModel:
+        """Construct a recognition model from Hub artifacts.
+
+        Args:
+            artifacts: Downloaded recognition Hub files.
+            weight_source: ``hub`` loads raw safetensors; ``paddle_pretrained``
+                patches known-bad head encoder weights for small/medium from
+                official Paddle pretrained checkpoints; ``auto`` picks the
+                default per variant.
+
+        Returns:
+            Loaded recognition model in eval mode.
+        """
         config = rec_config_from_artifacts(artifacts)
         model = cls(config)
         tensors = load_safetensors(artifacts.weights)
+        resolved = resolve_recognition_weight_source(artifacts.variant, weight_source)
+        if resolved == "paddle_pretrained":
+            tensors = load_patched_recognition_tensors(artifacts.variant, tensors)
         load_recognition_weights(model, tensors)
         model.eval()
         return model
 
 
-def load_recognition_model(artifacts: HubArtifacts) -> RecognitionModel:
-    """Load a recognition model with weights from Hub artifacts."""
-    return RecognitionModel.from_artifacts(artifacts)
+def load_recognition_model(
+    artifacts: HubArtifacts,
+    *,
+    weight_source: RecognitionWeightSource = "auto",
+) -> RecognitionModel:
+    """Load a recognition model with weights from Hub artifacts.
+
+    Args:
+        artifacts: Downloaded recognition Hub files.
+        weight_source: Weight loading mode; see ``RecognitionModel.from_artifacts``.
+
+    Returns:
+        Loaded recognition model in eval mode.
+    """
+    return RecognitionModel.from_artifacts(artifacts, weight_source=weight_source)

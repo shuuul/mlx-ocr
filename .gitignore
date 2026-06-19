@@ -101,6 +101,7 @@ ipython_config.py
 # uv.lock
 
 .cache/
+examples/output/
 
 # poetry
 #   Similar to Pipfile.lock, it is generally recommended to include poetry.lock in version control.

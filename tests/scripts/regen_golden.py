@@ -28,8 +28,9 @@ Variant = Literal["tiny", "small", "medium"]
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 TESTS_ROOT = REPO_ROOT / "tests"
+EXAMPLES_ROOT = REPO_ROOT / "examples"
 GOLDEN_ROOT = TESTS_ROOT / "data" / "golden"
-IMAGES_ROOT = TESTS_ROOT / "data" / "images"
+IMAGES_ROOT = EXAMPLES_ROOT / "images"
 REFERENCE_ROOT = TESTS_ROOT / "reference"
 
 MODEL_BASE_URL = (

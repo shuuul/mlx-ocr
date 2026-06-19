@@ -32,6 +32,8 @@ class HubArtifacts:
     inference: Path
     weights: Path
     preprocessor: Path
+    variant: ModelVariant
+    task: ModelTask
 
     @property
     def config_data(self) -> Mapping[str, object]:
@@ -93,4 +95,6 @@ def download_model(
         inference=paths["inference.yml"],
         weights=paths["model.safetensors"],
         preprocessor=paths["preprocessor_config.json"],
+        variant=variant,
+        task=task,
     )

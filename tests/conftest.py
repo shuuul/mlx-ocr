@@ -13,10 +13,12 @@ from tests.reference.preprocess.det_normalize import NormalizeImage, ToCHWImage
 from tests.reference.preprocess.det_resize import DetResizeForTest
 
 TESTS_ROOT = Path(__file__).resolve().parent
+REPO_ROOT = TESTS_ROOT.parent
+EXAMPLES_ROOT = REPO_ROOT / "examples"
 DATA_ROOT = TESTS_ROOT / "data"
 REFERENCE_ROOT = TESTS_ROOT / "reference"
 GOLDEN_ROOT = DATA_ROOT / "golden"
-IMAGES_ROOT = DATA_ROOT / "images"
+IMAGES_ROOT = EXAMPLES_ROOT / "images"
 DICT_ROOT = DATA_ROOT / "dict"
 
 VARIANTS = ("tiny", "small", "medium")
