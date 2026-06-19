@@ -1,0 +1,129 @@
+# mlx-ocr Agent Guide
+
+## Project Goal
+
+Rewrite [PP-OCRv6](https://huggingface.co/collections/PaddlePaddle/pp-ocrv6) for Apple Silicon inference using [MLX](https://github.com/ml-explore/mlx). Load official Hugging Face weights and run text detection + recognition locally on macOS.
+
+## Reference Code
+
+The canonical PaddleOCR implementation lives at `../PaddleOCR`. Use it as the source of truth for:
+
+- Model architecture (`ppocr/` modules, configs under `configs/det/PP-OCRv6/` and `configs/rec/PP-OCRv6/`)
+- Pre/post-processing (`tools/infer/`, `ppocr/postprocess/`)
+- Inference behavior (`tools/infer/predict_det.py`, `tools/infer/predict_rec.py`, `tools/infer/predict_system.py`)
+
+Do not copy PaddlePaddle runtime dependencies into this repo. Reimplement the computation graph in MLX and load weights from the Hub `*_safetensors` repos.
+
+## Hugging Face Weights
+
+Primary weight source: [PaddlePaddle/pp-ocrv6 collection](https://huggingface.co/collections/PaddlePaddle/pp-ocrv6).
+
+| Variant | Detection | Recognition |
+|---------|-----------|-------------|
+| tiny    | `PaddlePaddle/PP-OCRv6_tiny_det_safetensors`   | `PaddlePaddle/PP-OCRv6_tiny_rec_safetensors`   |
+| small   | `PaddlePaddle/PP-OCRv6_small_det_safetensors`  | `PaddlePaddle/PP-OCRv6_small_rec_safetensors`  |
+| medium  | `PaddlePaddle/PP-OCRv6_medium_det_safetensors` | `PaddlePaddle/PP-OCRv6_medium_rec_safetensors` |
+
+Each repo ships `config.json`, `inference.yml`, `model.safetensors`, and `preprocessor_config.json`. Prefer safetensors checkpoints for MLX weight loading.
+
+## Repository Layout
+
+```
+src/mlx_ocr/
+  hub/          # HF download + weight loading
+  models/       # MLX modules (backbone, neck, head)
+  preprocess/   # image transforms matching inference.yml
+  postprocess/  # DB decode, CTC decode
+  pipeline/     # det + rec orchestration
+  types.py      # frozen dataclasses for structured outputs
+tests/
+```
+
+## Development
+
+```bash
+uv sync
+uv run pytest
+uv run ruff check .
+```
+
+Python 3.12+. Package manager: [uv](https://docs.astral.sh/uv/).
+
+## Coding Rules
+
+### General Coding Rules
+
+#### Core Defaults
+
+- Default to forward development.
+- Do not preserve backward compatibility unless explicitly requested.
+- Prefer the simplest implementation that satisfies the requirement.
+- Remove dead code, obsolete branches, compatibility layers, unused parameters, and stale helper functions during edits.
+- Keep public APIs small and direct.
+
+#### Abstraction and Code Shape
+
+- Do not add thin wrapper functions that only rename a function, forward arguments, or mirror an existing API.
+- Add a wrapper only when it contributes at least one of:
+  - domain meaning,
+  - input validation,
+  - output normalization,
+  - composition of multiple operations,
+  - a materially clearer call boundary.
+- Do not duplicate logic across files or functions.
+- Extract shared code only when the abstraction is clearer than the repeated code.
+- Prefer one obvious implementation for each behavior.
+- Merge overlapping helpers and remove single-use indirection.
+
+#### Interfaces and Data Flow
+
+- Keep interfaces compact and explicit.
+- Add parameters only when the current task requires them.
+- Avoid speculative extensibility.
+- Prefer direct data flow over layered indirection.
+- Prefer structured outputs over ad hoc dictionaries and loosely shaped blobs.
+
+#### Validation and Failure Semantics
+
+- Validate external inputs at boundaries.
+- Fail loudly when required data, required outputs, or required intermediate artifacts are missing.
+- Preserve useful failure signals.
+- Raise explicit, domain-appropriate errors when validation fails.
+- Do not swallow exceptions.
+- Do not add silent fallback paths for required behavior.
+
+#### Readability and Maintainability
+
+- Prefer readability over cleverness.
+- Prefer explicit control flow over dense one-liners.
+- Keep nesting shallow.
+- Split files when they contain multiple unrelated responsibilities.
+- Write comments only for non-obvious logic, invariants, edge cases, or algorithmic intent.
+- Keep comments factual and concise.
+
+#### Anti-Patterns
+
+- Thin wrappers with no behavioral value.
+- Redundant helpers that duplicate existing code paths.
+- Silent fallback logic for required data.
+- Broad exception handling with vague recovery.
+- Compatibility shims added by default.
+- Dead branches kept "just in case".
+- Comment noise that restates the code.
+
+### Python Rules
+
+- Write fully typed Python. No `Any`. No `# type: ignore` unless explicitly requested.
+- Prefer `@dataclass(frozen=True)` for domain records; use `tuple`/`frozenset` inside frozen records.
+- Google-style docstrings on all public functions; module-level docstrings on every package module.
+- Use module-level `logger = logging.getLogger(__name__)`.
+- Validate filesystem and Hub inputs at boundaries; use `Path` for file paths.
+- Add or update tests for every behavioral change.
+- Match existing naming and import style in the file you edit.
+
+## Implementation Notes
+
+- **Detection**: DBHead + PPLCNetV4 backbone + RepLKPAN neck (see `PP-OCRv6_*_det.yml`).
+- **Recognition**: SVTR_LCNet with MultiHead (CTC + NRTR); start with CTC decode for inference parity.
+- **Weight porting**: Map safetensors keys from HF `config.json` architecture to MLX `nn.Module` parameters. Verify shapes against PaddleOCR reference when adding layers.
+- **Preprocessing**: Follow `inference.yml` `PreProcess` blocks (BGR decode, normalize, CHW layout).
