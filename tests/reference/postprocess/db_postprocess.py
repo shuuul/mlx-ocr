@@ -1,0 +1,245 @@
+# Copyright (c) 2020 PaddlePaddle Authors. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+"""Vendored from ppocr/postprocess/db_postprocess.py — numpy-only DBPostProcess."""
+
+from __future__ import annotations
+
+from typing import Any
+
+import cv2
+import numpy as np
+import pyclipper
+from shapely.geometry import Polygon
+
+
+class DBPostProcess:
+    """Post process for Differentiable Binarization (DB) text detection."""
+
+    def __init__(
+        self,
+        thresh: float = 0.3,
+        box_thresh: float = 0.7,
+        max_candidates: int = 1000,
+        unclip_ratio: float = 2.0,
+        use_dilation: bool = False,
+        score_mode: str = "fast",
+        box_type: str = "quad",
+        **kwargs: Any,
+    ) -> None:
+        del kwargs
+        self.thresh = thresh
+        self.box_thresh = box_thresh
+        self.max_candidates = max_candidates
+        self.unclip_ratio = unclip_ratio
+        self.min_size = 3
+        self.score_mode = score_mode
+        self.box_type = box_type
+        if score_mode not in ("slow", "fast"):
+            raise ValueError(f"score mode must be 'slow' or 'fast', got {score_mode!r}")
+
+        self.dilation_kernel = None if not use_dilation else np.array([[1, 1], [1, 1]])
+
+    def polygons_from_bitmap(
+        self,
+        pred: np.ndarray,
+        _bitmap: np.ndarray,
+        dest_width: float,
+        dest_height: float,
+    ) -> tuple[list[list[list[float]]], list[float]]:
+        bitmap = _bitmap
+        height, width = bitmap.shape
+
+        boxes: list[list[list[float]]] = []
+        scores: list[float] = []
+
+        contours, _ = cv2.findContours(
+            (bitmap * 255).astype(np.uint8), cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE
+        )
+
+        for contour in contours[: self.max_candidates]:
+            epsilon = 0.002 * cv2.arcLength(contour, True)
+            approx = cv2.approxPolyDP(contour, epsilon, True)
+            points = approx.reshape((-1, 2))
+            if points.shape[0] < 4:
+                continue
+
+            score = self.box_score_fast(pred, points.reshape(-1, 2))
+            if self.box_thresh > score:
+                continue
+
+            if points.shape[0] > 2:
+                box = self.unclip(points, self.unclip_ratio)
+                if len(box) > 1:
+                    continue
+            else:
+                continue
+            box_arr = np.array(box).reshape(-1, 2)
+            if len(box_arr) == 0:
+                continue
+
+            _, sside = self.get_mini_boxes(box_arr.reshape((-1, 1, 2)))
+            if sside < self.min_size + 2:
+                continue
+
+            box_arr[:, 0] = np.clip(np.round(box_arr[:, 0] / width * dest_width), 0, dest_width)
+            box_arr[:, 1] = np.clip(
+                np.round(box_arr[:, 1] / height * dest_height), 0, dest_height
+            )
+            boxes.append(box_arr.tolist())
+            scores.append(score)
+        return boxes, scores
+
+    def boxes_from_bitmap(
+        self,
+        pred: np.ndarray,
+        _bitmap: np.ndarray,
+        dest_width: float,
+        dest_height: float,
+    ) -> tuple[np.ndarray, list[float]]:
+        bitmap = _bitmap
+        height, width = bitmap.shape
+
+        outs = cv2.findContours(
+            (bitmap * 255).astype(np.uint8), cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE
+        )
+        if len(outs) == 3:
+            contours = outs[1]
+        elif len(outs) == 2:
+            contours = outs[0]
+        else:
+            raise RuntimeError("unexpected cv2.findContours return value")
+
+        num_contours = min(len(contours), self.max_candidates)
+
+        boxes: list[np.ndarray] = []
+        scores: list[float] = []
+        for index in range(num_contours):
+            contour = contours[index]
+            points, sside = self.get_mini_boxes(contour)
+            if sside < self.min_size:
+                continue
+            points_arr = np.array(points)
+            if self.score_mode == "fast":
+                score = self.box_score_fast(pred, points_arr.reshape(-1, 2))
+            else:
+                score = self.box_score_slow(pred, contour)
+            if self.box_thresh > score:
+                continue
+
+            box = self.unclip(points_arr, self.unclip_ratio)
+            if len(box) > 1:
+                continue
+            box_arr = np.array(box).reshape(-1, 1, 2)
+            box_arr, sside = self.get_mini_boxes(box_arr)
+            if sside < self.min_size + 2:
+                continue
+            box_arr = np.array(box_arr)
+
+            box_arr[:, 0] = np.clip(np.round(box_arr[:, 0] / width * dest_width), 0, dest_width)
+            box_arr[:, 1] = np.clip(
+                np.round(box_arr[:, 1] / height * dest_height), 0, dest_height
+            )
+            boxes.append(box_arr.astype("int32"))
+            scores.append(score)
+        return np.array(boxes, dtype="int32"), scores
+
+    def unclip(self, box: np.ndarray, unclip_ratio: float) -> list[list[float]]:
+        poly = Polygon(box)
+        distance = poly.area * unclip_ratio / poly.length
+        offset = pyclipper.PyclipperOffset()
+        offset.AddPath(box, pyclipper.JT_ROUND, pyclipper.ET_CLOSEDPOLYGON)
+        return offset.Execute(distance)
+
+    def get_mini_boxes(self, contour: np.ndarray) -> tuple[list[list[float]], float]:
+        bounding_box = cv2.minAreaRect(contour)
+        points = sorted(list(cv2.boxPoints(bounding_box)), key=lambda x: x[0])
+
+        if points[1][1] > points[0][1]:
+            index_1, index_4 = 0, 1
+        else:
+            index_1, index_4 = 1, 0
+        if points[3][1] > points[2][1]:
+            index_2, index_3 = 2, 3
+        else:
+            index_2, index_3 = 3, 2
+
+        box = [points[index_1], points[index_2], points[index_3], points[index_4]]
+        return box, min(bounding_box[1])
+
+    def box_score_fast(self, bitmap: np.ndarray, _box: np.ndarray) -> float:
+        h, w = bitmap.shape[:2]
+        box = _box.copy()
+        xmin = np.clip(np.floor(box[:, 0].min()).astype("int32"), 0, w - 1)
+        xmax = np.clip(np.ceil(box[:, 0].max()).astype("int32"), 0, w - 1)
+        ymin = np.clip(np.floor(box[:, 1].min()).astype("int32"), 0, h - 1)
+        ymax = np.clip(np.ceil(box[:, 1].max()).astype("int32"), 0, h - 1)
+
+        mask = np.zeros((ymax - ymin + 1, xmax - xmin + 1), dtype=np.uint8)
+        box[:, 0] = box[:, 0] - xmin
+        box[:, 1] = box[:, 1] - ymin
+        cv2.fillPoly(mask, box.reshape(1, -1, 2).astype("int32"), 1)
+        return float(cv2.mean(bitmap[ymin : ymax + 1, xmin : xmax + 1], mask)[0])
+
+    def box_score_slow(self, bitmap: np.ndarray, contour: np.ndarray) -> float:
+        h, w = bitmap.shape[:2]
+        contour = contour.copy()
+        contour = np.reshape(contour, (-1, 2))
+
+        xmin = np.clip(np.min(contour[:, 0]), 0, w - 1)
+        xmax = np.clip(np.max(contour[:, 0]), 0, w - 1)
+        ymin = np.clip(np.min(contour[:, 1]), 0, h - 1)
+        ymax = np.clip(np.max(contour[:, 1]), 0, h - 1)
+
+        mask = np.zeros((ymax - ymin + 1, xmax - xmin + 1), dtype=np.uint8)
+
+        contour[:, 0] = contour[:, 0] - xmin
+        contour[:, 1] = contour[:, 1] - ymin
+
+        cv2.fillPoly(mask, contour.reshape(1, -1, 2).astype("int32"), 1)
+        return float(cv2.mean(bitmap[ymin : ymax + 1, xmin : xmax + 1], mask)[0])
+
+    def __call__(
+        self,
+        outs_dict: dict[str, np.ndarray],
+        shape_list: list[tuple[float, float, float, float]],
+    ) -> list[dict[str, list[np.ndarray] | list[list[list[float]]]]]:
+        pred = outs_dict["maps"]
+        if not isinstance(pred, np.ndarray):
+            pred = np.asarray(pred)
+        pred = pred[:, 0, :, :]
+        segmentation = pred > self.thresh
+
+        boxes_batch: list[dict[str, list[np.ndarray] | list[list[list[float]]]]] = []
+        for batch_index in range(pred.shape[0]):
+            src_h, src_w, _ratio_h, _ratio_w = shape_list[batch_index]
+            if self.dilation_kernel is not None:
+                mask = cv2.dilate(
+                    np.array(segmentation[batch_index]).astype(np.uint8),
+                    self.dilation_kernel,
+                )
+            else:
+                mask = segmentation[batch_index]
+            if self.box_type == "poly":
+                boxes, _scores = self.polygons_from_bitmap(
+                    pred[batch_index], mask, src_w, src_h
+                )
+            elif self.box_type == "quad":
+                boxes, _scores = self.boxes_from_bitmap(
+                    pred[batch_index], mask, src_w, src_h
+                )
+            else:
+                raise ValueError("box_type can only be one of ['quad', 'poly']")
+
+            boxes_batch.append({"points": boxes})
+        return boxes_batch
