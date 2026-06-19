@@ -18,6 +18,7 @@ from mlx_ocr.models.rec.model import RecognitionModel, load_recognition_model
 from mlx_ocr.output import OCRTiming
 from mlx_ocr.pipeline.config import PipelineConfig, pipeline_config_from_artifacts
 from mlx_ocr.pipeline.crop import crop_text_regions, sorted_detections
+from mlx_ocr.pipeline.memory import MemoryPolicy, PipelineMemoryRuntime
 from mlx_ocr.postprocess.ctc import ctc_decode
 from mlx_ocr.postprocess.db import db_postprocess
 from mlx_ocr.preprocess.det import det_preprocess, nhwc_prob_to_nchw
@@ -101,6 +102,7 @@ class PP_OCRv6:
     detector: DetectionModel
     recognizer: RecognitionModel
     config: PipelineConfig
+    memory: PipelineMemoryRuntime
 
     @classmethod
     def from_artifacts(
@@ -113,6 +115,7 @@ class PP_OCRv6:
         rec_batch_num: int = 6,
         det_box_type: str = "quad",
         rec_weight_source: RecognitionWeightSource = "auto",
+        memory_policy: MemoryPolicy | None = None,
     ) -> PP_OCRv6:
         """Construct a pipeline from downloaded Hub artifacts.
 
@@ -124,6 +127,7 @@ class PP_OCRv6:
             rec_batch_num: Maximum recognition batch size.
             det_box_type: ``quad`` or ``poly`` crop mode.
             rec_weight_source: Recognition weight loading mode.
+            memory_policy: MLX allocator policy for inference and teardown.
 
         Returns:
             Initialized pipeline with loaded weights.
@@ -135,6 +139,8 @@ class PP_OCRv6:
             rec_batch_num=rec_batch_num,
             det_box_type=det_box_type,
         )
+        memory = PipelineMemoryRuntime(memory_policy or MemoryPolicy())
+        memory.apply_init_limits()
         return cls(
             variant=variant,
             detector=load_detection_model(det_artifacts),
@@ -143,6 +149,7 @@ class PP_OCRv6:
                 weight_source=rec_weight_source,
             ),
             config=config,
+            memory=memory,
         )
 
     @classmethod
@@ -155,6 +162,7 @@ class PP_OCRv6:
         rec_batch_num: int = 6,
         det_box_type: str = "quad",
         rec_weight_source: RecognitionWeightSource = "auto",
+        memory_policy: MemoryPolicy | None = None,
     ) -> PP_OCRv6:
         """Download Hub weights and construct a PP-OCRv6 pipeline.
 
@@ -167,6 +175,7 @@ class PP_OCRv6:
             rec_weight_source: Recognition weight loading mode. ``auto`` uses
                 raw Hub safetensors for ``tiny`` and Paddle-pretrained head
                 patches for ``small``/``medium``.
+            memory_policy: MLX allocator policy for inference and teardown.
 
         Returns:
             Initialized pipeline with loaded weights.
@@ -181,7 +190,12 @@ class PP_OCRv6:
             rec_batch_num=rec_batch_num,
             det_box_type=det_box_type,
             rec_weight_source=rec_weight_source,
+            memory_policy=memory_policy,
         )
+
+    def close(self) -> None:
+        """Release MLX allocator cache held by this pipeline."""
+        self.memory.release()
 
     def __call__(self, image: np.ndarray) -> OCRResult:
         """Run detection and recognition on a BGR image."""
@@ -214,6 +228,7 @@ class PP_OCRv6:
         mx.eval(prob_tensor)
         prob_map = nhwc_prob_to_nchw(prob_tensor)
         det_s = time.perf_counter() - det_start
+        self.memory.maybe_clear_after_det()
 
         detections = db_postprocess(
             prob_map,
@@ -228,6 +243,7 @@ class PP_OCRv6:
         if not ordered:
             logger.info("No text regions detected")
             total_s = time.perf_counter() - total_start
+            self.memory.on_predict_end()
             return PipelineResult(
                 result=OCRResult(detections=(), recognitions=()),
                 timing=OCRTiming(det_s=det_s, rec_s=0.0, total_s=total_s),
@@ -263,6 +279,7 @@ class PP_OCRv6:
             self.config.drop_score,
         )
         total_s = time.perf_counter() - total_start
+        self.memory.on_predict_end()
         return PipelineResult(
             result=OCRResult(
                 detections=tuple(filtered_detections),
