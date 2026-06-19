@@ -1,0 +1,6 @@
+# Paddle benchmark stack (install in a separate venv from mlx-ocr).
+# mlx-ocr requires numpy>=2.4; PaddleOCR 3.7 requires numpy<2.4.
+opencv-python-headless>=4.8
+paddleocr>=3.7
+paddlepaddle>=3.0
+onnxruntime>=1.19

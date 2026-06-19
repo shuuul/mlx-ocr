@@ -72,7 +72,9 @@ def recognize_crops(
             batch_tensors.append(preprocessed.image)
 
         batch_input = mx.concatenate(batch_tensors, axis=0)
-        softmax = np.asarray(recognizer(batch_input), dtype=np.float32)
+        logits = recognizer(batch_input)
+        mx.eval(logits)
+        softmax = np.asarray(logits, dtype=np.float32)
         decoded = ctc_decode(softmax, characters)
         for offset, recognition in enumerate(decoded):
             original_index = int(batch_indices[offset])

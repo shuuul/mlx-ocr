@@ -264,7 +264,7 @@ requires-dist = [
     { name = "mlx", specifier = ">=0.31.2" },
     { name = "numpy", specifier = ">=2.4.6" },
     { name = "pillow", specifier = ">=12.2.0" },
-    { name = "pyyaml", specifier = ">=6.0.3" },
+    { name = "pyyaml", specifier = ">=6.0.2" },
     { name = "safetensors", specifier = ">=0.8.0" },
 ]
 

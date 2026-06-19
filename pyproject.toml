@@ -22,7 +22,7 @@ dependencies = [
     "mlx>=0.31.2",
     "numpy>=2.4.6",
     "pillow>=12.2.0",
-    "pyyaml>=6.0.3",
+    "pyyaml>=6.0.2",
     "safetensors>=0.8.0",
 ]
 
@@ -41,7 +41,7 @@ build-backend = "uv_build"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-pythonpath = ["src"]
+pythonpath = ["src", "."]
 
 [tool.ruff]
 line-length = 100
