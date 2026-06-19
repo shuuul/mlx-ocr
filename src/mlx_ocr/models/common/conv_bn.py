@@ -21,6 +21,31 @@ def _as_pair(value: int | Sequence[int]) -> tuple[int, int]:
     return int(value[0]), int(value[1])
 
 
+def same_padding_pair(input_size: int, kernel_size: int, stride: int = 1) -> tuple[int, int]:
+    """Return Paddle-compatible ``SAME`` padding for one spatial axis."""
+    output_size = (input_size + stride - 1) // stride
+    pad_total = max(0, (output_size - 1) * stride + kernel_size - input_size)
+    pad_before = pad_total // 2
+    return pad_before, pad_total - pad_before
+
+
+def apply_same_padding_nhwc(
+    x: mx.array,
+    kernel_size: KernelSize,
+    *,
+    stride: int | tuple[int, int] = 1,
+) -> mx.array:
+    """Pad an NHWC tensor with Paddle ``SAME`` semantics."""
+    kernel_h, kernel_w = _as_pair(kernel_size)
+    stride_h, stride_w = _as_pair(stride)
+    height, width = x.shape[1], x.shape[2]
+    pad_h = same_padding_pair(height, kernel_h, stride_h)
+    pad_w = same_padding_pair(width, kernel_w, stride_w)
+    if pad_h == (0, 0) and pad_w == (0, 0):
+        return x
+    return mx.pad(x, ((0, 0), pad_h, pad_w, (0, 0)))
+
+
 def _resolve_padding(
     kernel_size: KernelSize,
     padding: Padding,
@@ -28,8 +53,7 @@ def _resolve_padding(
     if isinstance(padding, str):
         if padding.upper() != "SAME":
             raise ValueError(f"unsupported padding string: {padding}")
-        kernel_h, kernel_w = _as_pair(kernel_size)
-        return kernel_h // 2, kernel_w // 2
+        return 0
     if isinstance(padding, int):
         return padding
     return _as_pair(padding)
@@ -95,6 +119,7 @@ class Conv2DBN(nn.Module):
         stride: int | tuple[int, int] = 1,
         padding: Padding = 0,
         groups: int = 1,
+        bn_weight_init: float = 1.0,
     ) -> None:
         """Initialize an unfused conv + batch-norm block.
 
@@ -117,6 +142,10 @@ class Conv2DBN(nn.Module):
             bias=False,
         )
         self.bn = nn.BatchNorm(out_channels)
+        if bn_weight_init != 1.0:
+            self.bn.weight = (
+                mx.zeros_like(self.bn.weight) if bn_weight_init == 0.0 else self.bn.weight
+            )
 
     def __call__(self, x: mx.array) -> mx.array:
         """Apply convolution and batch normalization.
@@ -161,6 +190,9 @@ class ConvBNAct(nn.Module):
         """
         self.use_act = use_act
         self.fused = fused
+        self.dynamic_same_padding = isinstance(padding, str) and padding.upper() == "SAME"
+        self.kernel_size = _as_pair(kernel_size)
+        self.stride = _as_pair(stride)
         resolved_padding = _resolve_padding(kernel_size, padding)
 
         if fused:
@@ -197,6 +229,12 @@ class ConvBNAct(nn.Module):
         Returns:
             Block output tensor.
         """
+        if self.dynamic_same_padding:
+            x = apply_same_padding_nhwc(
+                x,
+                self.kernel_size,
+                stride=self.stride,
+            )
         x = self.conv(x)
         if self.bn is not None:
             x = self.bn(x)

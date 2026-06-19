@@ -143,6 +143,11 @@ def align_tensor_to_parameter(
 
     if len(value.shape) == 4 and len(expected_shape) == 4:
         out_channels, in_channels, kernel_h, kernel_w = value.shape
+        if expected_shape == (out_channels, kernel_h, kernel_w, in_channels):
+            return paddle_conv_weight_to_mlx(value)
+
+    if len(value.shape) == 4 and len(expected_shape) == 4:
+        out_channels, in_channels, kernel_h, kernel_w = value.shape
         paddle_shape = (out_channels, in_channels, kernel_h, kernel_w)
         if paddle_shape == (
             expected_shape[0],

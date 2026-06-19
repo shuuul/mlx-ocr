@@ -24,20 +24,30 @@ from mlx_ocr.models.common import (
     Conv2DBN,
     ConvBNAct,
     DilatedReparamBlock,
-    HardSigmoid,
     RepDWConv,
     SELayer,
     build_activation,
 )
+from mlx_ocr.models.common.activations import HardSigmoid, HardSigmoidClip
+
+
+def test_hard_sigmoid_clip_matches_paddle_functional() -> None:
+    act = HardSigmoidClip()
+    x = mx.array([-3.0, 0.0, 3.0])
+    y = np.asarray(act(x))
+    assert y[0] == 0.0
+    assert y[1] == pytest.approx(0.5)
+    assert y[2] == 1.0
 
 
 def test_hard_sigmoid_matches_paddle_formula() -> None:
     act = HardSigmoid()
-    x = mx.array([-3.0, 0.0, 3.0])
+    x = mx.array([-3.0, -2.9, 0.0, 3.0])
     y = np.asarray(act(x))
-    assert y[1] == pytest.approx(0.5)
-    assert y[0] == 0.0
-    assert y[2] == 1.0
+    assert y[0] == pytest.approx(0.0)
+    assert y[1] == pytest.approx(0.016666666, rel=1e-5)
+    assert y[2] == pytest.approx(0.5)
+    assert y[3] == pytest.approx(1.0)
 
 
 @pytest.mark.parametrize(
