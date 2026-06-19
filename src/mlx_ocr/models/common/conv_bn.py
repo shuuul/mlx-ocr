@@ -8,6 +8,7 @@ import mlx.core as mx
 import mlx.nn as nn
 
 from mlx_ocr.models.common.activations import ActivationName, build_activation
+from mlx_ocr.models.common.fuse import apply_conv_batch_norm_fusion
 
 KernelSize = int | Sequence[int]
 Padding = int | Sequence[int] | str
@@ -147,6 +148,14 @@ class Conv2DBN(nn.Module):
                 mx.zeros_like(self.bn.weight) if bn_weight_init == 0.0 else self.bn.weight
             )
 
+    def fuse_for_inference(self) -> bool:
+        """Fold batch norm into the convolution for inference."""
+        if self.bn is None:
+            return False
+        apply_conv_batch_norm_fusion(self.conv, self.bn)
+        self.bn = None
+        return True
+
     def __call__(self, x: mx.array) -> mx.array:
         """Apply convolution and batch normalization.
 
@@ -156,7 +165,10 @@ class Conv2DBN(nn.Module):
         Returns:
             Normalized output tensor.
         """
-        return self.bn(self.conv(x))
+        x = self.conv(x)
+        if self.bn is not None:
+            x = self.bn(x)
+        return x
 
 
 class ConvBNAct(nn.Module):
@@ -219,6 +231,14 @@ class ConvBNAct(nn.Module):
             self.bn = nn.BatchNorm(out_channels)
 
         self.act = build_activation(act_type) if use_act else None
+
+    def fuse_for_inference(self) -> bool:
+        """Fold batch norm into the convolution for inference."""
+        if self.bn is None:
+            return False
+        apply_conv_batch_norm_fusion(self.conv, self.bn)
+        self.bn = None
+        return True
 
     def __call__(self, x: mx.array) -> mx.array:
         """Apply the conv block.

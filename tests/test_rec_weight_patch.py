@@ -15,6 +15,30 @@ from mlx_ocr.hub.rec_weight_patch import (
     resolve_recognition_weight_source,
 )
 from mlx_ocr.hub.weights import paddle_conv_weight_to_mlx
+from mlx_ocr.models.rec.model import split_recognition_attention_tensors
+
+
+def test_split_recognition_attention_tensors_expands_fused_qkv() -> None:
+    """Fused QKV and projection Hub keys map to MultiHeadAttention parameters."""
+    dim = 120
+    tensors = {
+        "head.encoder.svtr_block.0.self_attn.qkv.weight": mx.arange(dim * 3 * dim, dtype=mx.float32).reshape(
+            dim * 3, dim
+        ),
+        "head.encoder.svtr_block.0.self_attn.qkv.bias": mx.arange(dim * 3, dtype=mx.float32),
+        "head.encoder.svtr_block.0.self_attn.projection.weight": mx.ones((dim, dim)),
+        "head.encoder.svtr_block.0.self_attn.projection.bias": mx.full((dim,), 2.0),
+        "head.encoder.svtr_block.0.mlp.fc1.weight": mx.zeros((1, 1)),
+    }
+    direct, remaining = split_recognition_attention_tensors(tensors)
+    assert set(remaining) == {"head.encoder.svtr_block.0.mlp.fc1.weight"}
+    assert np.asarray(direct["encoder.svtr_block_0.self_attn.query_proj.weight"]).shape == (dim, dim)
+    assert np.asarray(direct["encoder.svtr_block_0.self_attn.key_proj.weight"]).shape == (dim, dim)
+    assert np.asarray(direct["encoder.svtr_block_0.self_attn.value_proj.weight"]).shape == (dim, dim)
+    assert int(np.asarray(direct["encoder.svtr_block_0.self_attn.query_proj.weight"])[0, 0]) == 0
+    assert int(np.asarray(direct["encoder.svtr_block_0.self_attn.key_proj.weight"])[0, 0]) == dim * dim
+    assert int(np.asarray(direct["encoder.svtr_block_0.self_attn.value_proj.bias"])[0]) == dim * 2
+    assert float(np.asarray(direct["encoder.svtr_block_0.self_attn.out_proj.bias"])[0]) == 2.0
 
 
 def test_resolve_recognition_weight_source_auto() -> None:

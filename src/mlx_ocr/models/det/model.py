@@ -18,6 +18,7 @@ from mlx_ocr.hub.weights import (
     paddle_conv_weight_to_mlx,
     rewrite_hub_key,
 )
+from mlx_ocr.models.common.fuse import fuse_for_inference
 from mlx_ocr.models.det.backbone import PPLCNetV4Det
 from mlx_ocr.models.det.config import DetModelConfig, det_config_from_artifacts
 from mlx_ocr.models.det.head import DBHead
@@ -204,6 +205,7 @@ class DetectionModel(nn.Module):
         tensors = load_safetensors(artifacts.weights)
         load_detection_weights(model, tensors)
         model.eval()
+        fuse_for_inference(model)
         return model
 
 

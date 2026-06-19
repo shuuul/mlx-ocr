@@ -23,6 +23,7 @@ from mlx_ocr.hub.weights import (
     paddle_conv_weight_to_mlx,
     rewrite_hub_key,
 )
+from mlx_ocr.models.common.fuse import fuse_for_inference
 from mlx_ocr.models.rec.backbone import PPLCNetV4Rec
 from mlx_ocr.models.rec.config import RecModelConfig, rec_config_from_artifacts
 from mlx_ocr.models.rec.encoder import EncoderWithLightSVTR, im2seq
@@ -66,6 +67,45 @@ def rewrite_recognition_hub_key(source_key: str) -> str:
     for prefix in _INDEXED_PREFIXES:
         key = re.sub(rf"{re.escape(prefix)}\.(\d+)", rf"{prefix}_\1", key)
     return key
+
+
+def split_recognition_attention_tensors(
+    tensors: Mapping[str, mx.array],
+) -> tuple[dict[str, mx.array], dict[str, mx.array]]:
+    """Split fused QKV and output-projection Hub tensors for ``MultiHeadAttention``.
+
+    Hub checkpoints store a single fused ``qkv`` linear and a ``projection`` output
+    layer. ``nn.MultiHeadAttention`` expects separate ``query_proj``, ``key_proj``,
+    ``value_proj``, and ``out_proj`` parameters.
+
+    Args:
+        tensors: Raw safetensors from a recognition Hub repo.
+
+    Returns:
+        A pair of ``(direct_targets, remaining_sources)`` where ``direct_targets``
+        maps MLX parameter paths to aligned tensors and ``remaining_sources`` keeps
+        all other Hub keys for the generic mapper.
+    """
+    direct: dict[str, mx.array] = {}
+    remaining: dict[str, mx.array] = {}
+    for source_key, value in tensors.items():
+        rewritten = rewrite_recognition_hub_key(source_key)
+        if rewritten.endswith(".self_attn.qkv.weight") or rewritten.endswith(".self_attn.qkv.bias"):
+            prefix = rewritten[: rewritten.rindex(".qkv.")]
+            part = "weight" if rewritten.endswith(".weight") else "bias"
+            chunk = value.shape[0] // 3
+            for proj, index in (("query_proj", 0), ("key_proj", 1), ("value_proj", 2)):
+                direct[f"{prefix}.{proj}.{part}"] = value[index * chunk : (index + 1) * chunk]
+            continue
+        if rewritten.endswith(".self_attn.projection.weight") or rewritten.endswith(
+            ".self_attn.projection.bias"
+        ):
+            part = "weight" if rewritten.endswith(".weight") else "bias"
+            prefix = rewritten[: rewritten.rindex(".projection.")]
+            direct[f"{prefix}.out_proj.{part}"] = value
+            continue
+        remaining[source_key] = value
+    return direct, remaining
 
 
 def paddle_conv1d_weight_to_mlx(weight: mx.array, expected_shape: tuple[int, ...]) -> mx.array:
@@ -145,9 +185,11 @@ def build_recognition_mapper(
 
 def load_recognition_weights(module: nn.Module, tensors: Mapping[str, mx.array]) -> None:
     """Load Hub safetensors into a recognition module."""
-    mapper = build_recognition_mapper(tensors, module)
+    direct, remaining = split_recognition_attention_tensors(tensors)
+    mapper = build_recognition_mapper(remaining, module)
     expected = flatten_module_parameters(module)
-    mapped = mapper.map_tensors(tensors)
+    mapped = mapper.map_tensors(remaining)
+    mapped.update(direct)
 
     aligned: dict[str, mx.array] = {}
     shape_errors: list[str] = []
@@ -169,7 +211,12 @@ def load_recognition_weights(module: nn.Module, tensors: Mapping[str, mx.array])
 
     missing = tuple(sorted(set(expected) - set(aligned)))
     consumed = {source for source, target in mapper.mapping.items() if target in aligned}
-    unexpected = tuple(sorted(set(tensors) - consumed))
+    unexpected = tuple(
+        sorted(
+            set(remaining)
+            - consumed
+        )
+    )
     if missing or unexpected:
         raise ValueError(
             "strict recognition weight load failed: "
@@ -250,6 +297,7 @@ class RecognitionModel(nn.Module):
             tensors = load_patched_recognition_tensors(artifacts.variant, tensors)
         load_recognition_weights(model, tensors)
         model.eval()
+        fuse_for_inference(model)
         return model
 
 

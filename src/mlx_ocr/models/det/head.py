@@ -5,6 +5,8 @@ from __future__ import annotations
 import mlx.core as mx
 import mlx.nn as nn
 
+from mlx_ocr.models.common.fuse import apply_conv_batch_norm_fusion
+
 
 class DBHead(nn.Module):
     """Differentiable binarization head (inference binarize path only)."""
@@ -62,10 +64,21 @@ class ConvNorm(nn.Module):
             padding=padding,
             bias=bias,
         )
-        self.norm = nn.BatchNorm(out_channels)
+        self.norm: nn.BatchNorm | None = nn.BatchNorm(out_channels)
+
+    def fuse_for_inference(self) -> bool:
+        """Fold batch norm into the convolution for inference."""
+        if self.norm is None:
+            return False
+        apply_conv_batch_norm_fusion(self.conv, self.norm)
+        self.norm = None
+        return True
 
     def __call__(self, x: mx.array) -> mx.array:
-        return self.norm(self.conv(x))
+        x = self.conv(x)
+        if self.norm is not None:
+            x = self.norm(x)
+        return x
 
 
 class ConvNormAct(nn.Module):
@@ -89,11 +102,22 @@ class ConvNormAct(nn.Module):
             padding=padding,
             bias=bias,
         )
-        self.norm = nn.BatchNorm(out_channels)
+        self.norm: nn.BatchNorm | None = nn.BatchNorm(out_channels)
         self.act = nn.ReLU()
 
+    def fuse_for_inference(self) -> bool:
+        """Fold batch norm into the convolution for inference."""
+        if self.norm is None:
+            return False
+        apply_conv_batch_norm_fusion(self.conv, self.norm)
+        self.norm = None
+        return True
+
     def __call__(self, x: mx.array) -> mx.array:
-        return self.act(self.norm(self.conv(x)))
+        x = self.conv(x)
+        if self.norm is not None:
+            x = self.norm(x)
+        return self.act(x)
 
 
 class ConvTransposeNormAct(nn.Module):
@@ -115,8 +139,19 @@ class ConvTransposeNormAct(nn.Module):
             stride=stride,
             bias=bias,
         )
-        self.norm = nn.BatchNorm(out_channels)
+        self.norm: nn.BatchNorm | None = nn.BatchNorm(out_channels)
         self.act = nn.ReLU()
 
+    def fuse_for_inference(self) -> bool:
+        """Fold batch norm into the transposed convolution for inference."""
+        if self.norm is None:
+            return False
+        apply_conv_batch_norm_fusion(self.conv, self.norm)
+        self.norm = None
+        return True
+
     def __call__(self, x: mx.array) -> mx.array:
-        return self.act(self.norm(self.conv(x)))
+        x = self.conv(x)
+        if self.norm is not None:
+            x = self.norm(x)
+        return self.act(x)
