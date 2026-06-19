@@ -14,6 +14,16 @@ The canonical PaddleOCR implementation lives at `../PaddleOCR`. Use it as the so
 
 Do not copy PaddlePaddle runtime dependencies into this repo. Reimplement the computation graph in MLX and load weights from the Hub `*_safetensors` repos.
 
+## MLX Documentation
+
+Use the **DeepWiki MCP** to look up [MLX](https://github.com/ml-explore/mlx) APIs and behavior instead of guessing from source or stale training data. Target repository: `ml-explore/mlx`.
+
+- `read_wiki_structure` — list available MLX documentation topics
+- `read_wiki_contents` — read full MLX wiki/docs for a topic area
+- `ask_question` — ask targeted questions (e.g. `nn.Module` usage, weight loading, ops, array layout)
+
+Prefer this when porting layers, mapping safetensors weights, or debugging MLX-specific inference issues.
+
 ## Hugging Face Weights
 
 Primary weight source: [PaddlePaddle/pp-ocrv6 collection](https://huggingface.co/collections/PaddlePaddle/pp-ocrv6).

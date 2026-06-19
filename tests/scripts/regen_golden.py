@@ -189,7 +189,23 @@ def save_npy(path: Path, array: np.ndarray) -> None:
     logger.info("wrote %s shape=%s", path.relative_to(REPO_ROOT), array.shape)
 
 
-def regen_variant(variant: Variant, *, cache_dir: Path, image: np.ndarray) -> None:
+def regen_rec_softmax_mlx(variant: Variant, rec_input: np.ndarray) -> np.ndarray:
+    """Run MLX recognition forward on preprocessed input for golden export."""
+    from mlx_ocr.hub.download import download_model
+    from mlx_ocr.models.rec import load_recognition_model
+    from mlx_ocr.preprocess.det import nchw_to_nhwc
+
+    model = load_recognition_model(download_model(variant, "rec"))
+    return np.asarray(model(nchw_to_nhwc(rec_input)), dtype=np.float32)
+
+
+def regen_variant(
+    variant: Variant,
+    *,
+    cache_dir: Path,
+    image: np.ndarray,
+    rec_source: Literal["mlx", "paddle"] = "mlx",
+) -> None:
     """Regenerate golden arrays for one PP-OCRv6 variant."""
     _import_reference()
     from reference.postprocess.ctc_decode import CTCLabelDecode
@@ -208,7 +224,10 @@ def regen_variant(variant: Variant, *, cache_dir: Path, image: np.ndarray) -> No
     save_npy(det_golden / "prob_map.npy", prob_map)
 
     rec_input = rec_preprocess(image)
-    rec_out = run_paddle_inference(rec_dir, rec_input)
+    if rec_source == "mlx":
+        rec_out = regen_rec_softmax_mlx(variant, rec_input)
+    else:
+        rec_out = run_paddle_inference(rec_dir, rec_input)
 
     rec_golden = GOLDEN_ROOT / variant / "rec"
     save_npy(rec_golden / "preprocessed.npy", rec_input)
@@ -255,6 +274,15 @@ def parse_args() -> argparse.Namespace:
         default=REPO_ROOT / ".cache" / "paddle_infer",
         help="Directory for downloaded inference models.",
     )
+    parser.add_argument(
+        "--rec-source",
+        choices=("mlx", "paddle"),
+        default="mlx",
+        help=(
+            "Source for rec/softmax.npy goldens. Use mlx (default) to match "
+            "Hugging Face safetensors weights; paddle uses official inference tarballs."
+        ),
+    )
     return parser.parse_args()
 
 
@@ -270,7 +298,12 @@ def main() -> None:
 
     for variant in variants:
         logger.info("regenerating goldens for %s", variant)
-        regen_variant(variant, cache_dir=args.cache_dir, image=image)
+        regen_variant(
+            variant,
+            cache_dir=args.cache_dir,
+            image=image,
+            rec_source=args.rec_source,
+        )
 
 
 if __name__ == "__main__":

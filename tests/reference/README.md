@@ -27,7 +27,8 @@ Golden arrays live under `tests/data/golden/{variant}/{det,rec}/`:
 - `det/prob_map.npy` — DBHead probability map for fixed preprocessed input
 - `det/preprocessed.npy` — detection preprocess output (input to the model)
 - `det/shape.npy` — `[src_h, src_w, ratio_h, ratio_w]`
-- `rec/softmax.npy` — CTC softmax logits for fixed preprocessed input
+- `rec/softmax.npy` — CTC softmax for fixed preprocessed input (generated from
+  MLX + Hub safetensors by default; see `--rec-source` in `regen_golden.py`)
 - `rec/preprocessed.npy` — recognition preprocess output (input to the model)
 
 E2E JSON references live under `tests/data/golden/e2e/{variant}.json`.
@@ -40,6 +41,8 @@ default dev dependency set. Regenerate locally with:
 ```bash
 uv run python tests/scripts/regen_golden.py --variant medium
 uv run python tests/scripts/regen_golden.py --all
+# Paddle inference tarballs (det + optional legacy rec goldens):
+uv run python tests/scripts/regen_golden.py --all --rec-source paddle
 ```
 
 The script downloads official PaddleX inference tarballs when needed and writes
