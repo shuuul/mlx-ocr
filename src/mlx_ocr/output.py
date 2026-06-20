@@ -92,47 +92,20 @@ def to_markdown(
     title: str | None = None,
     input_path: str | None = None,
 ) -> str:
-    """Format OCR output as a Markdown document.
+    """Format OCR output as Markdown body text.
 
     Args:
         result: OCR output for a single image.
-        title: Optional document title. Defaults to the input file name or
-            ``OCR Result``.
-        input_path: Optional source image path recorded below the heading.
+        title: Unused title kept for API consistency.
+        input_path: Unused source path kept for API consistency.
 
     Returns:
-        Markdown text containing recognized text and region metadata.
+        Recognized text lines separated by newlines.
     """
-    heading = title or (Path(input_path).name if input_path is not None else "OCR Result")
-    lines = [f"# {heading}", ""]
-    if input_path is not None:
-        lines.extend((f"Source: `{input_path}`", ""))
-
-    lines.extend(("## Text", ""))
+    _ = title, input_path
     if not result.recognitions:
-        lines.extend(("No text detected.", ""))
-    else:
-        for recognition in result.recognitions:
-            lines.append(recognition.text)
-        lines.append("")
-
-    lines.extend(
-        (
-            "## Regions",
-            "",
-            "| # | Text | Score | Points |",
-            "|---:|---|---:|---|",
-        )
-    )
-    for index, (detection, recognition) in enumerate(
-        zip(result.detections, result.recognitions, strict=True),
-        start=1,
-    ):
-        text = recognition.text.replace("|", "\\|").replace("\n", "<br>")
-        points = json.dumps(box_points_int32(detection.box), ensure_ascii=False)
-        lines.append(f"| {index} | {text} | {recognition.score:.6f} | `{points}` |")
-    lines.append("")
-    return "\n".join(lines)
+        return ""
+    return "\n".join(recognition.text for recognition in result.recognitions) + "\n"
 
 
 def save_to_markdown(

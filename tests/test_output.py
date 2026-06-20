@@ -49,7 +49,7 @@ def test_save_to_json_writes_paddlex_layout(tmp_path: Path) -> None:
     assert data["res"]["input_path"] == "examples/images/img_10.jpg"
 
 
-def test_to_markdown_includes_text_scores_and_points() -> None:
+def test_to_markdown_returns_text_body_only() -> None:
     result = OCRResult(
         detections=(
             TextDetection(
@@ -62,10 +62,7 @@ def test_to_markdown_includes_text_scores_and_points() -> None:
 
     markdown = to_markdown(result, title="img_10", input_path="examples/images/img_10.jpg")
 
-    assert markdown.startswith("# img_10\n")
-    assert "Source: `examples/images/img_10.jpg`" in markdown
-    assert "A|B" in markdown
-    assert "| 1 | A\\|B | 0.700000 | `[[1, 2], [3, 2], [3, 4], [1, 4]]` |" in markdown
+    assert markdown == "A|B\n"
 
 
 def test_save_to_markdown_uses_input_stem(tmp_path: Path) -> None:
@@ -77,4 +74,4 @@ def test_save_to_markdown_uses_input_stem(tmp_path: Path) -> None:
     path = result.save_to_markdown(tmp_path, input_path="examples/images/img_10.jpg")
 
     assert path == tmp_path / "img_10.md"
-    assert "No text detected." in path.read_text(encoding="utf-8")
+    assert path.read_text(encoding="utf-8") == ""

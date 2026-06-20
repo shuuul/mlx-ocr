@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 import typer
 
-from mlx_ocr.cli import expand_image_paths, resolve_formats
+from mlx_ocr.cli import collect_input_documents, expand_image_paths, resolve_formats
 
 
 def test_resolve_formats_defaults_to_all_outputs() -> None:
@@ -25,12 +25,26 @@ def test_resolve_formats_preserves_requested_order_without_duplicates() -> None:
 def test_expand_image_paths_accepts_files_and_directories(tmp_path: Path) -> None:
     image_a = tmp_path / "a.jpg"
     image_b = tmp_path / "b.png"
+    pdf = tmp_path / "doc.pdf"
     text_file = tmp_path / "notes.txt"
     image_a.write_bytes(b"")
     image_b.write_bytes(b"")
+    pdf.write_bytes(b"")
     text_file.write_text("skip", encoding="utf-8")
 
-    assert expand_image_paths((image_a, tmp_path)) == (image_a, image_a, image_b)
+    assert expand_image_paths((image_a, tmp_path)) == (image_a, image_a, image_b, pdf)
+
+
+def test_collect_input_documents_marks_pdf_inputs(tmp_path: Path) -> None:
+    image = tmp_path / "a.jpg"
+    pdf = tmp_path / "doc.pdf"
+    image.write_bytes(b"")
+    pdf.write_bytes(b"")
+
+    documents = collect_input_documents((image, pdf))
+
+    assert [document.stem for document in documents] == ["a", "doc"]
+    assert [document.is_pdf for document in documents] == [False, True]
 
 
 def test_expand_image_paths_rejects_missing_input() -> None:

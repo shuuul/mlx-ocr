@@ -3,7 +3,10 @@
 from __future__ import annotations
 
 import logging
+import shutil
 import sys
+from collections.abc import Iterator
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Annotated, Literal, cast
 
@@ -20,12 +23,33 @@ logger = logging.getLogger(__name__)
 
 OutputFormat = Literal["text", "system", "json", "markdown"]
 IMAGE_SUFFIXES = frozenset({".bmp", ".jpeg", ".jpg", ".png", ".tif", ".tiff", ".webp"})
+PDF_SUFFIX = ".pdf"
+SUPPORTED_SUFFIXES = IMAGE_SUFFIXES | frozenset({PDF_SUFFIX})
 
 app = typer.Typer(
     add_completion=False,
     no_args_is_help=True,
     help="Run PP-OCRv6 OCR with MLX.",
 )
+
+
+@dataclass(frozen=True)
+class InputDocument:
+    """User-provided input document."""
+
+    path: Path
+    stem: str
+    is_pdf: bool
+
+
+@dataclass(frozen=True)
+class RenderedPage:
+    """Rendered page or image ready for OCR."""
+
+    image: np.ndarray
+    input_path: str
+    output_name: str
+    page_index: int | None
 
 
 def read_bgr_image(path: Path) -> np.ndarray:
@@ -50,43 +74,135 @@ def read_bgr_image(path: Path) -> np.ndarray:
     return array[:, :, ::-1].copy()
 
 
-def expand_image_paths(paths: tuple[Path, ...]) -> tuple[Path, ...]:
-    """Expand input files and directories to sorted image files.
+def collect_input_documents(paths: tuple[Path, ...]) -> tuple[InputDocument, ...]:
+    """Expand input files and directories to supported documents.
 
     Args:
         paths: User-provided ``--path`` values.
 
     Returns:
-        Tuple of image file paths.
+        Tuple of image and PDF input documents.
 
     Raises:
         typer.BadParameter: If an input path is missing, unsupported, or no
-            image files are found.
+            supported documents are found.
     """
     if not paths:
         raise typer.BadParameter("provide at least one --path/-p value")
 
-    image_paths: list[Path] = []
+    document_paths: list[Path] = []
     for path in paths:
         if not path.exists():
             raise typer.BadParameter(f"missing input path: {path}")
         if path.is_file():
-            if path.suffix.lower() not in IMAGE_SUFFIXES:
-                raise typer.BadParameter(f"unsupported image file: {path}")
-            image_paths.append(path)
+            if path.suffix.lower() not in SUPPORTED_SUFFIXES:
+                raise typer.BadParameter(f"unsupported input file: {path}")
+            document_paths.append(path)
             continue
         if path.is_dir():
-            image_paths.extend(
+            document_paths.extend(
                 file_path
                 for file_path in sorted(path.iterdir())
-                if file_path.is_file() and file_path.suffix.lower() in IMAGE_SUFFIXES
+                if file_path.is_file() and file_path.suffix.lower() in SUPPORTED_SUFFIXES
             )
             continue
         raise typer.BadParameter(f"unsupported input path: {path}")
 
-    if not image_paths:
-        raise typer.BadParameter("no supported image files found")
-    return tuple(image_paths)
+    if not document_paths:
+        raise typer.BadParameter("no supported image or PDF files found")
+    return tuple(
+        InputDocument(path=path, stem=path.stem, is_pdf=path.suffix.lower() == PDF_SUFFIX)
+        for path in document_paths
+    )
+
+
+def expand_image_paths(paths: tuple[Path, ...]) -> tuple[Path, ...]:
+    """Expand input files and directories to supported image/PDF files.
+
+    Args:
+        paths: User-provided ``--path`` values.
+
+    Returns:
+        Tuple of supported input file paths.
+    """
+    return tuple(document.path for document in collect_input_documents(paths))
+
+
+def iter_rendered_pages(
+    document: InputDocument,
+    *,
+    start: int | None,
+    end: int | None,
+) -> Iterator[RenderedPage]:
+    """Yield rendered OCR inputs for an image or PDF document.
+
+    Args:
+        document: Input image or PDF document.
+        start: Optional 0-based first PDF page to process.
+        end: Optional 0-based last PDF page to process, inclusive.
+
+    Yields:
+        Rendered OCR inputs in document order.
+    """
+    if document.is_pdf:
+        yield from render_pdf_pages(document.path, start=start, end=end)
+        return
+    if start is not None or end is not None:
+        raise typer.BadParameter("--start/--end can only be used with PDF inputs")
+    yield RenderedPage(
+        image=read_bgr_image(document.path),
+        input_path=str(document.path.resolve()),
+        output_name=document.path.name,
+        page_index=None,
+    )
+
+
+def render_pdf_pages(path: Path, *, start: int | None, end: int | None) -> Iterator[RenderedPage]:
+    """Render PDF pages to BGR arrays.
+
+    Args:
+        path: PDF file path.
+        start: Optional 0-based first page.
+        end: Optional 0-based last page, inclusive.
+
+    Yields:
+        Rendered PDF pages in page order.
+
+    Raises:
+        typer.BadParameter: If the page range is invalid.
+        RuntimeError: If the PDF rendering dependency is unavailable.
+    """
+    try:
+        import fitz
+    except ImportError as exc:
+        raise RuntimeError("Install PDF support with `uv sync` or `pip install pymupdf`.") from exc
+
+    with fitz.open(path) as document:
+        page_count = document.page_count
+        if page_count == 0:
+            raise typer.BadParameter(f"PDF has no pages: {path}")
+        first_page = 0 if start is None else start
+        last_page = page_count - 1 if end is None else end
+        if first_page < 0 or last_page < first_page or last_page >= page_count:
+            raise typer.BadParameter(
+                f"invalid page range {first_page}-{last_page} for {path} with {page_count} pages"
+            )
+
+        matrix = fitz.Matrix(2.0, 2.0)
+        for page_index in range(first_page, last_page + 1):
+            page = document.load_page(page_index)
+            pixmap = page.get_pixmap(matrix=matrix, alpha=False)
+            rgb = np.frombuffer(pixmap.samples, dtype=np.uint8).reshape(
+                pixmap.height,
+                pixmap.width,
+                pixmap.n,
+            )
+            yield RenderedPage(
+                image=rgb[:, :, :3][:, :, ::-1].copy(),
+                input_path=f"{path.resolve()}#page={page_index}",
+                output_name=f"{path.stem}_page_{page_index + 1:04d}",
+                page_index=page_index,
+            )
 
 
 def resolve_formats(values: list[str] | None, *, quiet: bool) -> tuple[OutputFormat, ...]:
@@ -115,7 +231,7 @@ def resolve_formats(values: list[str] | None, *, quiet: bool) -> tuple[OutputFor
 
 def run_ocr(
     *,
-    paths: tuple[Path, ...],
+    documents: tuple[InputDocument, ...],
     output_dir: Path,
     formats: tuple[OutputFormat, ...],
     variant: ModelVariant,
@@ -123,6 +239,8 @@ def run_ocr(
     rec_weight_source: RecognitionWeightSource,
     compile_models: bool,
     quiet: bool,
+    start: int | None,
+    end: int | None,
 ) -> None:
     """Run OCR and write selected outputs."""
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -135,26 +253,47 @@ def run_ocr(
 
     system_lines: list[str] = []
     try:
-        for image_path in paths:
-            pipeline_result = ocr.predict(read_bgr_image(image_path))
-            result = pipeline_result.result
-            timing = pipeline_result.timing
-            input_path = str(image_path.resolve())
+        for document in documents:
+            parse_dir = output_dir / document.stem / "ocr"
+            parse_dir.mkdir(parents=True, exist_ok=True)
+            if document.is_pdf:
+                shutil.copyfile(document.path, parse_dir / f"{document.stem}_origin.pdf")
 
-            if "text" in formats:
-                typer.echo(f"# {image_path.name}")
-                result.print()
-                typer.echo(
-                    "timing: "
-                    f"det={timing.det_s:.3f}s rec={timing.rec_s:.3f}s total={timing.total_s:.3f}s"
-                )
+            markdown_pages: list[str] = []
+            for rendered in iter_rendered_pages(document, start=start, end=end):
+                pipeline_result = ocr.predict(rendered.image)
+                result = pipeline_result.result
+                timing = pipeline_result.timing
 
-            if "system" in formats:
-                system_lines.append(to_system_results_line(result, image_path.name))
-            if "json" in formats:
-                result.save_to_json(output_dir, input_path=input_path)
+                if "text" in formats:
+                    typer.echo(f"# {rendered.output_name}")
+                    result.print()
+                    typer.echo(
+                        "timing: "
+                        f"det={timing.det_s:.3f}s rec={timing.rec_s:.3f}s "
+                        f"total={timing.total_s:.3f}s"
+                    )
+
+                if "system" in formats:
+                    system_lines.append(to_system_results_line(result, rendered.output_name))
+                if "json" in formats:
+                    json_path = parse_dir / f"{rendered.output_name}_res.json"
+                    result.save_to_json(
+                        json_path,
+                        input_path=rendered.input_path,
+                        page_index=rendered.page_index,
+                    )
+                if "markdown" in formats:
+                    markdown_pages.append(result.to_markdown(input_path=rendered.input_path).strip())
+
             if "markdown" in formats:
-                result.save_to_markdown(output_dir, input_path=input_path)
+                markdown_path = parse_dir / f"{document.stem}.md"
+                markdown_text = "\n\n".join(page for page in markdown_pages if page).strip()
+                markdown_path.write_text(
+                    markdown_text + ("\n" if markdown_text else ""),
+                    encoding="utf-8",
+                )
+                logger.info("Wrote %s", markdown_path)
     finally:
         ocr.close()
 
@@ -203,6 +342,14 @@ def ocr(
             help="Minimum recognition score to keep a detected text line.",
         ),
     ] = 0.5,
+    start: Annotated[
+        int | None,
+        typer.Option("--start", "-s", help="0-based first PDF page to process."),
+    ] = None,
+    end: Annotated[
+        int | None,
+        typer.Option("--end", "-e", help="0-based last PDF page to process, inclusive."),
+    ] = None,
     rec_weight_source: Annotated[
         str,
         typer.Option(
@@ -240,7 +387,7 @@ def ocr(
                 raise typer.BadParameter(message)
 
     run_ocr(
-        paths=expand_image_paths(tuple(path or ())),
+        documents=collect_input_documents(tuple(path or ())),
         output_dir=output,
         formats=resolve_formats(output_format, quiet=quiet),
         variant=cast(ModelVariant, variant),
@@ -248,6 +395,8 @@ def ocr(
         rec_weight_source=cast(RecognitionWeightSource, rec_weight_source),
         compile_models=not no_compile,
         quiet=quiet,
+        start=start,
+        end=end,
     )
 
 

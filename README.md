@@ -37,11 +37,20 @@ Or use the installed CLI:
 uv run mlx-ocr --path examples/images/img_10.jpg --output ocr-output
 ```
 
+The CLI accepts image files, PDF files, or a non-recursive directory of supported
+inputs. PDF page ranges use 0-based inclusive page indexes, matching MinerU's
+CLI style:
+
+```bash
+uv run mlx-ocr -p docs/report.pdf -o ocr-output --start 0 --end 2
+```
+
 Output formats align with PaddleOCR:
 
 - `system_results.txt` — `tools/infer/predict_system.py` TSV (`transcription` + `points`)
-- `{basename}_res.json` — PaddleOCR 3.x `save_to_json` layout
-- `{basename}.md` — Markdown text and region table for agent/document workflows
+- `<output>/<stem>/ocr/{page-or-image}_res.json` — PaddleOCR 3.x `save_to_json` layout
+- `<output>/<stem>/ocr/<stem>.md` — Markdown body text only, one file per input document
+- `<output>/<stem>/ocr/<stem>_origin.pdf` — original PDF copy for PDF inputs
 
 Use repeated `--format` flags to restrict output, for example:
 
