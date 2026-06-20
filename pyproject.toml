@@ -24,7 +24,17 @@ dependencies = [
     "pillow>=12.2.0",
     "pyyaml>=6.0.2",
     "safetensors>=0.8.0",
+    "typer>=0.20.0",
 ]
+
+[project.optional-dependencies]
+mcp = [
+    "mcp>=1.23.0",
+]
+
+[project.scripts]
+mlx-ocr = "mlx_ocr.cli:main"
+mlx-ocr-mcp = "mlx_ocr.mcp:main"
 
 [dependency-groups]
 dev = [

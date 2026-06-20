@@ -86,6 +86,87 @@ def save_system_results(
     return path
 
 
+def to_markdown(
+    result: OCRResult,
+    *,
+    title: str | None = None,
+    input_path: str | None = None,
+) -> str:
+    """Format OCR output as a Markdown document.
+
+    Args:
+        result: OCR output for a single image.
+        title: Optional document title. Defaults to the input file name or
+            ``OCR Result``.
+        input_path: Optional source image path recorded below the heading.
+
+    Returns:
+        Markdown text containing recognized text and region metadata.
+    """
+    heading = title or (Path(input_path).name if input_path is not None else "OCR Result")
+    lines = [f"# {heading}", ""]
+    if input_path is not None:
+        lines.extend((f"Source: `{input_path}`", ""))
+
+    lines.extend(("## Text", ""))
+    if not result.recognitions:
+        lines.extend(("No text detected.", ""))
+    else:
+        for recognition in result.recognitions:
+            lines.append(recognition.text)
+        lines.append("")
+
+    lines.extend(
+        (
+            "## Regions",
+            "",
+            "| # | Text | Score | Points |",
+            "|---:|---|---:|---|",
+        )
+    )
+    for index, (detection, recognition) in enumerate(
+        zip(result.detections, result.recognitions, strict=True),
+        start=1,
+    ):
+        text = recognition.text.replace("|", "\\|").replace("\n", "<br>")
+        points = json.dumps(box_points_int32(detection.box), ensure_ascii=False)
+        lines.append(f"| {index} | {text} | {recognition.score:.6f} | `{points}` |")
+    lines.append("")
+    return "\n".join(lines)
+
+
+def save_to_markdown(
+    result: OCRResult,
+    save_path: Path,
+    *,
+    input_path: str | None = None,
+) -> Path:
+    """Save OCR output as Markdown.
+
+    Args:
+        result: OCR output for a single image.
+        save_path: Target file or directory. Directories receive ``{stem}.md``.
+        input_path: Optional source image path recorded in Markdown.
+
+    Returns:
+        Path to the written Markdown file.
+    """
+    if save_path.suffix != ".md":
+        stem = Path(input_path or "result").stem
+        save_path.mkdir(parents=True, exist_ok=True)
+        markdown_path = save_path / f"{stem}.md"
+    else:
+        save_path.parent.mkdir(parents=True, exist_ok=True)
+        markdown_path = save_path
+
+    markdown_path.write_text(
+        to_markdown(result, title=markdown_path.stem, input_path=input_path),
+        encoding="utf-8",
+    )
+    logger.info("Wrote %s", markdown_path)
+    return markdown_path
+
+
 def to_paddlex_res(
     result: OCRResult,
     *,

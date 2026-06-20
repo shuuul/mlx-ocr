@@ -31,10 +31,33 @@ Or use the example script:
 uv run python examples/run_ocr.py --variant medium examples/images/img_10.jpg
 ```
 
+Or use the installed CLI:
+
+```bash
+uv run mlx-ocr --path examples/images/img_10.jpg --output ocr-output
+```
+
 Output formats align with PaddleOCR:
 
 - `system_results.txt` — `tools/infer/predict_system.py` TSV (`transcription` + `points`)
 - `{basename}_res.json` — PaddleOCR 3.x `save_to_json` layout
+- `{basename}.md` — Markdown text and region table for agent/document workflows
+
+Use repeated `--format` flags to restrict output, for example:
+
+```bash
+uv run mlx-ocr -p examples/images/img_10.jpg -f markdown -f json -o ocr-output
+```
+
+Optional MCP support is available as an extra:
+
+```bash
+uv sync --extra mcp
+uv run mlx-ocr-mcp
+```
+
+The MCP server exposes an `ocr_markdown` tool that reads a local image path and
+returns Markdown OCR output.
 
 **Note:** Hugging Face `small`/`medium` recognition safetensors ship swapped head encoder weights. `PP_OCRv6.from_hub(..., rec_weight_source="auto")` (default) patches them from official Paddle pretrained checkpoints.
 

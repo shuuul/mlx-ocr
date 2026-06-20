@@ -118,6 +118,18 @@ class OCRResult:
             text_rec_score_thresh=text_rec_score_thresh,
         )
 
+    def to_markdown(self, *, title: str | None = None, input_path: str | None = None) -> str:
+        """Format output as Markdown."""
+        from mlx_ocr.output import to_markdown
+
+        return to_markdown(self, title=title, input_path=input_path)
+
+    def save_to_markdown(self, save_path: Path, *, input_path: str | None = None) -> Path:
+        """Save Markdown output to ``save_path``."""
+        from mlx_ocr.output import save_to_markdown
+
+        return save_to_markdown(self, save_path, input_path=input_path)
+
     def print(self) -> None:
         """Print text and score lines to stdout."""
         from mlx_ocr.output import print_result
