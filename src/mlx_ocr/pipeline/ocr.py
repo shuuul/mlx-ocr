@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import time
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -21,7 +22,12 @@ from mlx_ocr.pipeline.crop import crop_text_regions, sorted_detections
 from mlx_ocr.pipeline.memory import MemoryPolicy, PipelineMemoryRuntime
 from mlx_ocr.postprocess.ctc import ctc_decode
 from mlx_ocr.postprocess.db import db_postprocess
-from mlx_ocr.preprocess.det import det_preprocess, nhwc_prob_to_nchw
+from mlx_ocr.preprocess.det import (
+    det_preprocess,
+    nhwc_prob_to_nchw,
+    normalize_det_image_mlx,
+    resize_det_image,
+)
 from mlx_ocr.preprocess.rec import rec_preprocess
 from mlx_ocr.types import OCRResult, TextDetection, TextRecognition
 
@@ -29,7 +35,7 @@ logger = logging.getLogger(__name__)
 
 
 def recognize_crops(
-    recognizer: RecognitionModel,
+    recognizer: Callable[[mx.array], mx.array],
     crops: tuple[np.ndarray, ...],
     *,
     rec_image_shape: tuple[int, int, int],
@@ -39,7 +45,7 @@ def recognize_crops(
     """Run batched recognition on cropped text regions.
 
     Args:
-        recognizer: Loaded recognition model.
+        recognizer: Loaded recognition model or compiled recognition callable.
         crops: BGR crops in detection order.
         rec_image_shape: Base ``(C, H, W)`` shape from inference configs.
         characters: CTC character table with blank at index 0.
@@ -103,6 +109,9 @@ class PP_OCRv6:
     recognizer: RecognitionModel
     config: PipelineConfig
     memory: PipelineMemoryRuntime
+    detector_forward: Callable[[mx.array], mx.array] | None = None
+    detector_preprocess_forward: Callable[[mx.array], mx.array] | None = None
+    recognizer_forward: Callable[[mx.array], mx.array] | None = None
 
     @classmethod
     def from_artifacts(
@@ -116,6 +125,7 @@ class PP_OCRv6:
         det_box_type: str = "quad",
         rec_weight_source: RecognitionWeightSource = "auto",
         memory_policy: MemoryPolicy | None = None,
+        compile_models: bool = True,
     ) -> PP_OCRv6:
         """Construct a pipeline from downloaded Hub artifacts.
 
@@ -128,6 +138,7 @@ class PP_OCRv6:
             det_box_type: ``quad`` or ``poly`` crop mode.
             rec_weight_source: Recognition weight loading mode.
             memory_policy: MLX allocator policy for inference and teardown.
+            compile_models: Compile model forward passes with ``mx.compile``.
 
         Returns:
             Initialized pipeline with loaded weights.
@@ -141,15 +152,27 @@ class PP_OCRv6:
         )
         memory = PipelineMemoryRuntime(memory_policy or MemoryPolicy())
         memory.apply_init_limits()
+        detector = load_detection_model(det_artifacts)
+        recognizer = load_recognition_model(
+            rec_artifacts,
+            weight_source=rec_weight_source,
+        )
+        detector_preprocess_forward: Callable[[mx.array], mx.array] | None = None
+        if compile_models:
+
+            def detector_with_preprocess(resized_image: mx.array) -> mx.array:
+                return detector(normalize_det_image_mlx(resized_image))
+
+            detector_preprocess_forward = mx.compile(detector_with_preprocess)
         return cls(
             variant=variant,
-            detector=load_detection_model(det_artifacts),
-            recognizer=load_recognition_model(
-                rec_artifacts,
-                weight_source=rec_weight_source,
-            ),
+            detector=detector,
+            recognizer=recognizer,
             config=config,
             memory=memory,
+            detector_forward=mx.compile(detector) if compile_models else None,
+            detector_preprocess_forward=detector_preprocess_forward,
+            recognizer_forward=mx.compile(recognizer) if compile_models else None,
         )
 
     @classmethod
@@ -158,17 +181,22 @@ class PP_OCRv6:
         variant: ModelVariant,
         *,
         cache_dir: Path | None = None,
+        det_variant: ModelVariant | None = None,
+        rec_variant: ModelVariant | None = None,
         drop_score: float = 0.5,
         rec_batch_num: int = 6,
         det_box_type: str = "quad",
         rec_weight_source: RecognitionWeightSource = "auto",
         memory_policy: MemoryPolicy | None = None,
+        compile_models: bool = True,
     ) -> PP_OCRv6:
         """Download Hub weights and construct a PP-OCRv6 pipeline.
 
         Args:
             variant: Model size tier.
             cache_dir: Optional Hugging Face cache directory.
+            det_variant: Optional detection model tier. Defaults to ``variant``.
+            rec_variant: Optional recognition model tier. Defaults to ``variant``.
             drop_score: Minimum recognition score to keep a detection.
             rec_batch_num: Maximum recognition batch size.
             det_box_type: ``quad`` or ``poly`` crop mode.
@@ -176,12 +204,15 @@ class PP_OCRv6:
                 raw Hub safetensors for ``tiny`` and Paddle-pretrained head
                 patches for ``small``/``medium``.
             memory_policy: MLX allocator policy for inference and teardown.
+            compile_models: Compile model forward passes with ``mx.compile``.
 
         Returns:
             Initialized pipeline with loaded weights.
         """
-        det_artifacts = download_model(variant, "det", cache_dir=cache_dir)
-        rec_artifacts = download_model(variant, "rec", cache_dir=cache_dir)
+        resolved_det_variant = det_variant or variant
+        resolved_rec_variant = rec_variant or variant
+        det_artifacts = download_model(resolved_det_variant, "det", cache_dir=cache_dir)
+        rec_artifacts = download_model(resolved_rec_variant, "rec", cache_dir=cache_dir)
         return cls.from_artifacts(
             variant,
             det_artifacts,
@@ -191,6 +222,7 @@ class PP_OCRv6:
             det_box_type=det_box_type,
             rec_weight_source=rec_weight_source,
             memory_policy=memory_policy,
+            compile_models=compile_models,
         )
 
     def close(self) -> None:
@@ -218,13 +250,27 @@ class PP_OCRv6:
 
         total_start = time.perf_counter()
 
-        preprocessed = det_preprocess(
-            image,
-            limit_side_len=self.config.det_limit_side_len,
-            limit_type=self.config.det_limit_type,
-        )
+        if self.detector_preprocess_forward is None:
+            preprocessed = det_preprocess(
+                image,
+                limit_side_len=self.config.det_limit_side_len,
+                limit_type=self.config.det_limit_type,
+            )
+            shape = preprocessed.shape
+            det_input = preprocessed.image
+        else:
+            resized, shape = resize_det_image(
+                image,
+                limit_side_len=self.config.det_limit_side_len,
+                limit_type=self.config.det_limit_type,
+            )
+            det_input = mx.array(resized)
         det_start = time.perf_counter()
-        prob_tensor = self.detector(preprocessed.image)
+        if self.detector_preprocess_forward is not None:
+            prob_tensor = self.detector_preprocess_forward(det_input)
+        else:
+            detector = self.detector_forward or self.detector
+            prob_tensor = detector(det_input)
         mx.eval(prob_tensor)
         prob_map = nhwc_prob_to_nchw(prob_tensor)
         det_s = time.perf_counter() - det_start
@@ -232,7 +278,7 @@ class PP_OCRv6:
 
         detections = db_postprocess(
             prob_map,
-            preprocessed.shape,
+            shape,
             thresh=float(self.config.det_postprocess_params["thresh"]),
             box_thresh=float(self.config.det_postprocess_params["box_thresh"]),
             max_candidates=int(self.config.det_postprocess_params["max_candidates"]),
@@ -256,7 +302,7 @@ class PP_OCRv6:
         )
         rec_start = time.perf_counter()
         recognitions = recognize_crops(
-            self.recognizer,
+            self.recognizer_forward or self.recognizer,
             crops,
             rec_image_shape=self.config.rec_image_shape,
             characters=self.config.characters,

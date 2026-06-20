@@ -1,6 +1,6 @@
 # PP-OCRv6 Backend Benchmarks
 
-Compare **mlx-ocr** (MLX on Apple Silicon), **PaddleOCR CPU** (`engine=paddle`), and **PaddleOCR ONNX** (`engine=onnxruntime` with `CPUExecutionProvider` on macOS) on the same PP-OCRv6 images and model variants.
+Compare **mlx-ocr** (MLX on Apple Silicon), **MinerU pipeline** (`PytorchPaddleOCR` on MPS/CUDA), **PaddleOCR CPU** (`engine=paddle`), and **PaddleOCR ONNX** (`engine=onnxruntime` with `CPUExecutionProvider` on macOS) on the same PP-OCRv6 images and model variants.
 
 ## Setup
 
@@ -25,6 +25,35 @@ Then run the full suite with:
 ```bash
 PADDLE_BENCHMARK_PYTHON=.venv-paddle/bin/python uv run python -m benchmarks.run --variant medium
 ```
+
+### MinerU pipeline backend
+
+MinerU also pins `numpy<2.4`. Install in a separate virtualenv:
+
+```bash
+.venv/bin/python -m venv .venv-mineru
+source .venv-mineru/bin/activate
+pip install -r benchmarks/requirements-mineru.txt
+```
+
+Run with mlx and MinerU together:
+
+```bash
+MINERU_BENCHMARK_PYTHON=.venv-mineru/bin/python \
+PADDLE_BENCHMARK_PYTHON=.venv-paddle/bin/python \
+uv run python -m benchmarks.run \
+  --backends mlx,mineru_pipeline,paddle_cpu,paddle_onnx \
+  --variant medium
+```
+
+MinerU 3.4 uses PP-OCRv6 weights via `PytorchPaddleOCR`. Variant mapping:
+
+| mlx variant | MinerU lang | PP-OCRv6 weights |
+|-------------|-------------|------------------|
+| `small` / `tiny` | `ch` | small det + small rec |
+| `medium` | `ch_server` | small det + medium rec |
+
+MinerU always uses **small** detection; only recognition tier changes. mlx `medium` uses medium det + medium rec, so latency comparisons are approximate.
 
 Requirements:
 
@@ -76,6 +105,7 @@ uv run python -m benchmarks.compare benchmarks/results/run_latest.json --format 
 | `mlx` | MLX | Apple Silicon GPU | `PP_OCRv6.from_hub()` |
 | `paddle_cpu` | `paddle` | `cpu` | MKL-DNN enabled by default |
 | `paddle_onnx` | `onnxruntime` | `cpu` | `CPUExecutionProvider` on macOS |
+| `mineru_pipeline` | PyTorch | `mps` / `cuda` | MinerU `PytorchPaddleOCR` (PP-OCRv6) |
 
 Paddle backends disable document preprocessing and text-line orientation so the benchmark matches mlx-ocr det+rec scope:
 

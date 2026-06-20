@@ -104,6 +104,7 @@ ipython_config.py
 examples/output/
 benchmarks/results/*.json
 .venv-paddle/
+.venv-mineru/
 
 # poetry
 #   Similar to Pipfile.lock, it is generally recommended to include poetry.lock in version control.

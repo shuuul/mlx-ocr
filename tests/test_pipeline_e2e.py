@@ -3,12 +3,18 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
+from typing import cast
 
 import numpy as np
 import pytest
 
+from mlx_ocr.hub.download import HubArtifacts
+from mlx_ocr.hub.rec_weight_patch import RecognitionWeightSource
+from mlx_ocr.hub.registry import ModelTask, ModelVariant
 from mlx_ocr.pipeline import PP_OCRv6, sorted_detections
 from mlx_ocr.pipeline.crop import sorted_box_indices
+from mlx_ocr.pipeline.memory import MemoryPolicy
 from mlx_ocr.postprocess.ctc import ctc_decode
 from mlx_ocr.preprocess.rec import rec_preprocess_crop_from_image
 from mlx_ocr.types import TextDetection
@@ -87,3 +93,57 @@ def test_pp_ocrv6_from_hub_returns_pipeline(sample_bgr_image: np.ndarray) -> Non
     result = pipeline(sample_bgr_image)
     assert len(result.detections) == len(result.recognitions)
     assert len(result.detections) > 0
+
+
+def test_pp_ocrv6_from_hub_accepts_stage_variants(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """``from_hub`` can mix detection and recognition tiers."""
+    downloads: list[tuple[ModelVariant, ModelTask]] = []
+    constructed: list[tuple[ModelVariant, ModelVariant, ModelVariant]] = []
+
+    def fake_download_model(
+        variant: ModelVariant,
+        task: ModelTask,
+        *,
+        cache_dir: Path | None = None,
+        local_dir: Path | None = None,
+    ) -> HubArtifacts:
+        del cache_dir, local_dir
+        downloads.append((variant, task))
+        return HubArtifacts(
+            root=Path("/tmp") / f"{variant}_{task}",
+            config=Path("/tmp/config.json"),
+            inference=Path("/tmp/inference.yml"),
+            weights=Path("/tmp/model.safetensors"),
+            preprocessor=Path("/tmp/preprocessor_config.json"),
+            variant=variant,
+            task=task,
+        )
+
+    def fake_from_artifacts(
+        cls: type[PP_OCRv6],
+        variant: ModelVariant,
+        det_artifacts: HubArtifacts,
+        rec_artifacts: HubArtifacts,
+        *,
+        drop_score: float = 0.5,
+        rec_batch_num: int = 6,
+        det_box_type: str = "quad",
+        rec_weight_source: RecognitionWeightSource = "auto",
+        memory_policy: MemoryPolicy | None = None,
+        compile_models: bool = True,
+    ) -> PP_OCRv6:
+        del cls, drop_score, rec_batch_num, det_box_type, rec_weight_source, memory_policy
+        del compile_models
+        constructed.append((variant, det_artifacts.variant, rec_artifacts.variant))
+        return cast(PP_OCRv6, object())
+
+    monkeypatch.setattr("mlx_ocr.pipeline.ocr.download_model", fake_download_model)
+    monkeypatch.setattr(PP_OCRv6, "from_artifacts", classmethod(fake_from_artifacts))
+
+    pipeline = PP_OCRv6.from_hub("medium", det_variant="small")
+
+    assert pipeline is not None
+    assert downloads == [("small", "det"), ("medium", "rec")]
+    assert constructed == [("medium", "small", "medium")]

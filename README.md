@@ -64,6 +64,15 @@ See [AGENTS.md](AGENTS.md) for architecture notes and coding conventions.
 | small   | `PaddlePaddle/PP-OCRv6_small_det_safetensors`  | `PaddlePaddle/PP-OCRv6_small_rec_safetensors`  |
 | medium  | `PaddlePaddle/PP-OCRv6_medium_det_safetensors` | `PaddlePaddle/PP-OCRv6_medium_rec_safetensors` |
 
+Use `det_variant` or `rec_variant` when you need mixed-stage tiers. For
+example, MinerU `ch_server` is closest to:
+
+```python
+ocr = PP_OCRv6.from_hub("medium", det_variant="small")
+```
+
+This runs PP-OCRv6 small detection with medium recognition.
+
 ### Recognition weights (small / medium)
 
 Hugging Face `small` and `medium` recognition safetensors ship corrupted

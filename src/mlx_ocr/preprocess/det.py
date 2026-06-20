@@ -8,6 +8,17 @@ import cv2
 import mlx.core as mx
 import numpy as np
 
+_NORMALIZE_SCALE = np.array(
+    [1.0 / (255.0 * 0.229), 1.0 / (255.0 * 0.224), 1.0 / (255.0 * 0.225)],
+    dtype=np.float32,
+)
+_NORMALIZE_BIAS = np.array(
+    [-0.485 / 0.229, -0.456 / 0.224, -0.406 / 0.225],
+    dtype=np.float32,
+)
+_NORMALIZE_SCALE_MX = mx.array(_NORMALIZE_SCALE)
+_NORMALIZE_BIAS_MX = mx.array(_NORMALIZE_BIAS)
+
 
 @dataclass(frozen=True)
 class DetPreprocessResult:
@@ -65,12 +76,64 @@ def _resize_for_test(
 
 
 def _normalize_image(image: np.ndarray) -> np.ndarray:
-    scale = np.float32(1.0 / 255.0)
-    mean = np.array([0.485, 0.456, 0.406], dtype=np.float32)
-    std = np.array([0.229, 0.224, 0.225], dtype=np.float32)
-    normalized = image.astype(np.float32) * scale
-    normalized = (normalized - mean) / std
+    normalized = image.astype(np.float32)
+    cv2.multiply(normalized, _NORMALIZE_SCALE, dst=normalized)
+    cv2.add(normalized, _NORMALIZE_BIAS, dst=normalized)
     return normalized
+
+
+def normalize_det_image_mlx(image: mx.array) -> mx.array:
+    """Normalize a resized BGR image with MLX operations.
+
+    Args:
+        image: Resized BGR image in HWC layout.
+
+    Returns:
+        Normalized NHWC batch tensor ready for detection inference.
+
+    Raises:
+        ValueError: If ``image`` is not a 3-channel HWC tensor.
+    """
+    if image.ndim != 3 or image.shape[2] != 3:
+        raise ValueError(f"expected resized BGR image [H, W, 3], got shape {image.shape}")
+    normalized = image.astype(mx.float32) * _NORMALIZE_SCALE_MX + _NORMALIZE_BIAS_MX
+    return mx.expand_dims(normalized, axis=0)
+
+
+def resize_det_image(
+    image: np.ndarray,
+    *,
+    limit_side_len: int = 960,
+    limit_type: str = "min",
+) -> tuple[np.ndarray, tuple[float, float, float, float]]:
+    """Resize a BGR image for PP-OCRv6 detection.
+
+    Args:
+        image: Source image in BGR uint8 layout ``[H, W, 3]``.
+        limit_side_len: Maximum/minimum side length before 32-pixel padding.
+        limit_type: ``min`` or ``max`` limit behavior from Paddle configs.
+
+    Returns:
+        Resized image and source-shape metadata.
+
+    Raises:
+        ValueError: If ``image`` is not a 3-channel BGR array.
+    """
+    if image.ndim != 3 or image.shape[2] != 3:
+        raise ValueError(f"expected BGR image [H, W, 3], got shape {image.shape}")
+
+    if sum(image.shape[:2]) < 64:
+        pad_h = max(32, image.shape[0])
+        pad_w = max(32, image.shape[1])
+        padded = np.zeros((pad_h, pad_w, 3), dtype=image.dtype)
+        padded[: image.shape[0], : image.shape[1]] = image
+        image = padded
+
+    return _resize_for_test(
+        image,
+        limit_side_len=limit_side_len,
+        limit_type=limit_type,
+    )
 
 
 def det_preprocess(
@@ -92,17 +155,7 @@ def det_preprocess(
     Raises:
         ValueError: If ``image`` is not a 3-channel BGR array.
     """
-    if image.ndim != 3 or image.shape[2] != 3:
-        raise ValueError(f"expected BGR image [H, W, 3], got shape {image.shape}")
-
-    if sum(image.shape[:2]) < 64:
-        pad_h = max(32, image.shape[0])
-        pad_w = max(32, image.shape[1])
-        padded = np.zeros((pad_h, pad_w, 3), dtype=image.dtype)
-        padded[: image.shape[0], : image.shape[1]] = image
-        image = padded
-
-    resized, (src_h, src_w, ratio_h, ratio_w) = _resize_for_test(
+    resized, (src_h, src_w, ratio_h, ratio_w) = resize_det_image(
         image,
         limit_side_len=limit_side_len,
         limit_type=limit_type,

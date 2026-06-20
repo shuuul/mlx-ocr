@@ -27,9 +27,11 @@ RUNNER_MODULES: dict[Backend, str] = {
     "mlx": "benchmarks.runners.mlx_ocr",
     "paddle_cpu": "benchmarks.runners.paddle_cpu",
     "paddle_onnx": "benchmarks.runners.paddle_onnx",
+    "mineru_pipeline": "benchmarks.runners.mineru_pipeline",
 }
 RESULTS_DIR = REPO_ROOT / "benchmarks" / "results"
 PADDLE_PYTHON = os.environ.get("PADDLE_BENCHMARK_PYTHON", sys.executable)
+MINERU_PYTHON = os.environ.get("MINERU_BENCHMARK_PYTHON", sys.executable)
 
 
 def parse_backends(value: str) -> list[Backend]:
@@ -68,7 +70,12 @@ def run_backend(
     """Run one backend benchmark subprocess and return its JSON output path."""
     runner_module = RUNNER_MODULES[backend]
     output_path = RESULTS_DIR / f"{backend}_{variant}.json"
-    python = sys.executable if backend == "mlx" else PADDLE_PYTHON
+    if backend == "mlx":
+        python = sys.executable
+    elif backend == "mineru_pipeline":
+        python = MINERU_PYTHON
+    else:
+        python = PADDLE_PYTHON
     command = [
         python,
         "-m",

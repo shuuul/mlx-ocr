@@ -1,0 +1,3 @@
+# Isolated venv for MinerU pipeline OCR benchmarks.
+# MinerU pins numpy<2.4; mlx-ocr requires numpy>=2.4.
+mineru[core]>=3.4

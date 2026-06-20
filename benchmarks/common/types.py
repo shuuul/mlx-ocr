@@ -6,10 +6,15 @@ import json
 from dataclasses import asdict, dataclass
 from typing import Literal
 
-Backend = Literal["mlx", "paddle_cpu", "paddle_onnx"]
+Backend = Literal["mlx", "paddle_cpu", "paddle_onnx", "mineru_pipeline"]
 Variant = Literal["tiny", "small", "medium"]
 
-BACKENDS: tuple[Backend, ...] = ("mlx", "paddle_cpu", "paddle_onnx")
+BACKENDS: tuple[Backend, ...] = (
+    "mlx",
+    "paddle_cpu",
+    "paddle_onnx",
+    "mineru_pipeline",
+)
 VARIANTS: tuple[Variant, ...] = ("tiny", "small", "medium")
 
 
