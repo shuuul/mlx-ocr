@@ -39,15 +39,47 @@ src/mlx_ocr/
 tests/
 ```
 
+Use scoped `AGENTS.md` files for directory-specific rules when a subtree has
+stable concerns that should not burden the whole repository. Keep nested guides
+short and actionable; root rules still apply unless a narrower guide adds more
+specific constraints.
+
 ## Development
 
 ```bash
-uv sync
+uv sync --group dev
 uv run pytest
 uv run ruff check .
+uv run prek run --all-files
 ```
 
 Python 3.12+. Package manager: [uv](https://docs.astral.sh/uv/).
+
+## Agent Workflow
+
+- Use subagents for bounded review or verification work when public-facing
+  changes cross multiple areas, such as README/packaging, CLI behavior, source
+  API, and tests.
+- Keep subagent tasks read-only unless the edit target is isolated and clearly
+  assigned. Integrate and validate the final changes yourself.
+- Ask review subagents for evidence: file paths, concrete gaps, and whether a
+  change is necessary or only nice-to-have.
+- Prefer parallel subagents for independent checks, for example one reviewing
+  `src/` public API and packaging, and another reviewing `tests/` coverage.
+- Do not use subagents as a substitute for reading the files you will edit or
+  for running the final verification command.
+
+## Public Surface Rules
+
+- Treat README examples, `pyproject.toml` metadata and scripts,
+  `mlx_ocr.__init__` exports, CLI options/output formats, MCP entry points, and
+  structured output dataclasses as public-facing surfaces.
+- Update README and tests when a public CLI option, output layout, Python API,
+  model variant behavior, optional dependency, or install command changes.
+- Keep public documentation honest about project maturity and required platform
+  assumptions. This project targets macOS on Apple Silicon.
+- Do not document a command as generally available unless it is backed by the
+  package metadata, console script, or committed repository workflow.
 
 ## Coding Rules
 
