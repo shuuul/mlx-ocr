@@ -1,6 +1,10 @@
 # mlx-ocr
 
 [![Lint](https://github.com/shuuul/mlx-ocr/actions/workflows/lint.yml/badge.svg)](https://github.com/shuuul/mlx-ocr/actions/workflows/lint.yml)
+[![Python 3.12+](https://img.shields.io/badge/python-3.12%2B-blue.svg)](https://www.python.org/downloads/)
+[![Apple MLX](https://img.shields.io/badge/Apple-MLX-black.svg)](https://github.com/ml-explore/mlx)
+[![Apple Silicon](https://img.shields.io/badge/platform-Apple%20Silicon-lightgrey.svg)](https://support.apple.com/en-us/116943)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
 Apple Silicon OCR powered by [MLX](https://github.com/ml-explore/mlx) and
 [PP-OCRv6](https://huggingface.co/collections/PaddlePaddle/pp-ocrv6).
