@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import logging
 import shutil
 import sys
@@ -16,12 +17,13 @@ from PIL import Image
 
 from mlx_ocr.hub.rec_weight_patch import RecognitionWeightSource
 from mlx_ocr.hub.registry import ModelVariant
-from mlx_ocr.output import print_result, save_to_json, to_markdown, to_system_results_line
+from mlx_ocr.output import to_markdown, to_paddlex_res
 from mlx_ocr.pipeline import PP_OCRv6
+from mlx_ocr.types import OCRResult
 
 logger = logging.getLogger(__name__)
 
-OutputFormat = Literal["text", "system", "json", "markdown"]
+OutputFormat = Literal["txt", "json", "markdown"]
 IMAGE_SUFFIXES = frozenset({".bmp", ".jpeg", ".jpg", ".png", ".tif", ".tiff", ".webp"})
 PDF_SUFFIX = ".pdf"
 SUPPORTED_SUFFIXES = IMAGE_SUFFIXES | frozenset({PDF_SUFFIX})
@@ -50,6 +52,14 @@ class RenderedPage:
     input_path: str
     output_name: str
     page_index: int | None
+
+
+@dataclass(frozen=True)
+class PageOCRResult:
+    """OCR result for one rendered image or PDF page."""
+
+    rendered: RenderedPage
+    result: OCRResult
 
 
 def read_bgr_image(path: Path) -> np.ndarray:
@@ -193,39 +203,109 @@ def render_pdf_pages(path: Path, *, start: int | None, end: int | None) -> Itera
             )
 
 
-def resolve_formats(values: list[str] | None, *, quiet: bool) -> tuple[OutputFormat, ...]:
-    """Resolve requested output formats.
+def resolve_format(value: str) -> OutputFormat:
+    """Validate the requested CLI output format.
 
     Args:
-        values: Raw repeated ``--format`` values.
-        quiet: Whether default console text should be suppressed.
+        value: Raw ``--format`` value.
 
     Returns:
-        Ordered unique output formats.
+        Valid output format.
+
+    Raises:
+        typer.BadParameter: If the output format is unsupported.
     """
-    default: tuple[OutputFormat, ...] = (
-        ("system", "json", "markdown")
-        if quiet
-        else (
-            "text",
-            "system",
-            "json",
-            "markdown",
-        )
-    )
-    raw_values = list(default if values is None else cast(list[OutputFormat], values))
-    formats: list[OutputFormat] = []
-    for value in raw_values:
-        if value not in formats:
-            formats.append(value)
-    return tuple(formats)
+    valid_formats = {"txt", "json", "markdown"}
+    if value not in valid_formats:
+        raise typer.BadParameter(f"format must be one of: {', '.join(sorted(valid_formats))}")
+    return cast(OutputFormat, value)
+
+
+def page_label(page: PageOCRResult) -> str:
+    """Return a human-readable label for an OCR page."""
+    if page.rendered.page_index is None:
+        return page.rendered.output_name
+    return f"Page {page.rendered.page_index + 1}"
+
+
+def to_txt(result: OCRResult) -> str:
+    """Format OCR output as plain text."""
+    if not result.recognitions:
+        return ""
+    return "\n".join(recognition.text for recognition in result.recognitions) + "\n"
+
+
+def format_txt_document(pages: tuple[PageOCRResult, ...]) -> str:
+    """Format one input document as plain text, preserving page boundaries."""
+    if len(pages) == 1 and pages[0].rendered.page_index is None:
+        return to_txt(pages[0].result)
+
+    sections: list[str] = []
+    for page in pages:
+        body = to_txt(page.result).strip()
+        sections.append(f"# {page_label(page)}" + (f"\n{body}" if body else ""))
+    return "\n\n".join(sections).strip() + "\n"
+
+
+def format_markdown_document(pages: tuple[PageOCRResult, ...]) -> str:
+    """Format one input document as Markdown, preserving PDF page boundaries."""
+    if len(pages) == 1 and pages[0].rendered.page_index is None:
+        return to_markdown(pages[0].result)
+
+    sections: list[str] = []
+    for page in pages:
+        body = to_markdown(page.result).strip()
+        sections.append(f"## {page_label(page)}" + (f"\n\n{body}" if body else ""))
+    return "\n\n".join(sections).strip() + "\n"
+
+
+def format_json_document(document: InputDocument, pages: tuple[PageOCRResult, ...]) -> str:
+    """Format one input document as JSON, preserving page metadata."""
+    payload: dict[str, object] = {
+        "input_path": str(document.path.resolve()),
+        "pages": [
+            {
+                "name": page.rendered.output_name,
+                "page_index": page.rendered.page_index,
+                "res": to_paddlex_res(
+                    page.result,
+                    input_path=page.rendered.input_path,
+                    page_index=page.rendered.page_index,
+                ),
+            }
+            for page in pages
+        ],
+    }
+    return json.dumps(payload, ensure_ascii=False, indent=2) + "\n"
+
+
+def format_document_output(
+    document: InputDocument,
+    pages: tuple[PageOCRResult, ...],
+    output_format: OutputFormat,
+) -> str:
+    """Format one input document in the selected CLI output format."""
+    if output_format == "txt":
+        return format_txt_document(pages)
+    if output_format == "markdown":
+        return format_markdown_document(pages)
+    return format_json_document(document, pages)
+
+
+def output_suffix(output_format: OutputFormat) -> str:
+    """Return the file suffix for an output format."""
+    if output_format == "txt":
+        return ".txt"
+    if output_format == "markdown":
+        return ".md"
+    return ".json"
 
 
 def run_ocr(
     *,
     documents: tuple[InputDocument, ...],
-    output_dir: Path,
-    formats: tuple[OutputFormat, ...],
+    output_dir: Path | None,
+    output_format: OutputFormat,
     variant: ModelVariant,
     drop_score: float,
     rec_weight_source: RecognitionWeightSource,
@@ -234,8 +314,10 @@ def run_ocr(
     start: int | None,
     end: int | None,
 ) -> None:
-    """Run OCR and write selected outputs."""
-    output_dir.mkdir(parents=True, exist_ok=True)
+    """Run OCR and emit the selected output format."""
+    if output_dir is not None:
+        output_dir.mkdir(parents=True, exist_ok=True)
+
     ocr = PP_OCRv6.from_hub(
         variant,
         drop_score=drop_score,
@@ -243,60 +325,35 @@ def run_ocr(
         compile_models=compile_models,
     )
 
-    system_lines: list[str] = []
+    written_paths: list[Path] = []
     try:
         for document in documents:
-            parse_dir = output_dir / document.stem / "ocr"
-            parse_dir.mkdir(parents=True, exist_ok=True)
-            if document.is_pdf:
-                shutil.copyfile(document.path, parse_dir / f"{document.stem}_origin.pdf")
+            save_dir: Path | None = None
+            if output_dir is not None:
+                save_dir = output_dir / document.stem / "ocr"
+                save_dir.mkdir(parents=True, exist_ok=True)
+                if document.is_pdf:
+                    shutil.copyfile(document.path, save_dir / f"{document.stem}_origin.pdf")
 
-            markdown_pages: list[str] = []
+            pages: list[PageOCRResult] = []
             for rendered in iter_rendered_pages(document, start=start, end=end):
                 pipeline_result = ocr.predict(rendered.image)
-                result = pipeline_result.result
-                timing = pipeline_result.timing
+                pages.append(PageOCRResult(rendered=rendered, result=pipeline_result.result))
 
-                if "text" in formats:
-                    typer.echo(f"# {rendered.output_name}")
-                    print_result(result)
-                    typer.echo(
-                        "timing: "
-                        f"det={timing.det_s:.3f}s rec={timing.rec_s:.3f}s "
-                        f"total={timing.total_s:.3f}s"
-                    )
+            rendered_output = format_document_output(document, tuple(pages), output_format)
+            if save_dir is None:
+                typer.echo(rendered_output, nl=False)
+                continue
 
-                if "system" in formats:
-                    system_lines.append(to_system_results_line(result, rendered.output_name))
-                if "json" in formats:
-                    json_path = parse_dir / f"{rendered.output_name}_res.json"
-                    save_to_json(
-                        result,
-                        json_path,
-                        input_path=rendered.input_path,
-                        page_index=rendered.page_index,
-                    )
-                if "markdown" in formats:
-                    markdown_pages.append(to_markdown(result).strip())
-
-            if "markdown" in formats:
-                markdown_path = parse_dir / f"{document.stem}.md"
-                markdown_text = "\n\n".join(page for page in markdown_pages if page).strip()
-                markdown_path.write_text(
-                    markdown_text + ("\n" if markdown_text else ""),
-                    encoding="utf-8",
-                )
-                logger.info("Wrote %s", markdown_path)
+            output_path = save_dir / f"{document.stem}{output_suffix(output_format)}"
+            output_path.write_text(rendered_output, encoding="utf-8")
+            written_paths.append(output_path)
+            logger.info("Wrote %s", output_path)
     finally:
         ocr.close()
 
-    if system_lines:
-        system_path = output_dir / "system_results.txt"
-        system_path.write_text("".join(system_lines), encoding="utf-8")
-        logger.info("Wrote %s", system_path)
-
-    if not quiet:
-        typer.echo(f"Wrote outputs under {output_dir}")
+    if written_paths and not quiet:
+        typer.echo(f"Wrote {len(written_paths)} output file(s) under {output_dir}")
 
 
 @app.command()
@@ -310,9 +367,17 @@ def ocr(
         ),
     ] = None,
     output: Annotated[
-        Path,
-        typer.Option("--output", "-o", help="Output directory for selected file formats."),
-    ] = Path("ocr-output"),
+        Path | None,
+        typer.Option(
+            "--output",
+            "-o",
+            help="Optional directory for saved output files. If omitted, output is printed to stdout.",
+        ),
+    ] = None,
+    output_format: Annotated[
+        str,
+        typer.Option("--format", "-f", help="Output format: txt, markdown, or json."),
+    ] = "markdown",
     variant: Annotated[
         str,
         typer.Option(
@@ -320,14 +385,6 @@ def ocr(
             help="PP-OCRv6 model size tier. Defaults to PaddleOCR medium.",
         ),
     ] = "medium",
-    output_format: Annotated[
-        list[str] | None,
-        typer.Option(
-            "--format",
-            "-f",
-            help="Output format: text, system, json, or markdown. Repeat to select multiple.",
-        ),
-    ] = None,
     drop_score: Annotated[
         float,
         typer.Option(
@@ -356,10 +413,10 @@ def ocr(
     ] = False,
     quiet: Annotated[
         bool,
-        typer.Option("--quiet", help="Suppress default console text output."),
+        typer.Option("--quiet", help="Suppress logging and saved-file summaries."),
     ] = False,
 ) -> None:
-    """Run OCR on image files and write PaddleOCR-style outputs."""
+    """Run OCR on image/PDF files and emit txt, Markdown, or JSON."""
     logging.basicConfig(level=logging.WARNING if quiet else logging.INFO, format="%(message)s")
 
     valid_variants = {"tiny", "small", "medium"}
@@ -372,17 +429,10 @@ def ocr(
             f"rec_weight_source must be one of: {', '.join(sorted(valid_weight_sources))}"
         )
 
-    valid_formats = {"text", "system", "json", "markdown"}
-    if output_format is not None:
-        for value in output_format:
-            if value not in valid_formats:
-                message = f"format must be one of: {', '.join(sorted(valid_formats))}"
-                raise typer.BadParameter(message)
-
     run_ocr(
         documents=collect_input_documents(tuple(path or ())),
         output_dir=output,
-        formats=resolve_formats(output_format, quiet=quiet),
+        output_format=resolve_format(output_format),
         variant=cast(ModelVariant, variant),
         drop_score=drop_score,
         rec_weight_source=cast(RecognitionWeightSource, rec_weight_source),

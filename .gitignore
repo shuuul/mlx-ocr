@@ -101,6 +101,7 @@ ipython_config.py
 # uv.lock
 
 .cache/
+ocr-output/
 examples/output/
 benchmarks/results/*.json
 .venv-paddle/

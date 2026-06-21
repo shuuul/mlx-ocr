@@ -2,24 +2,86 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
+import numpy as np
 import pytest
 import typer
 
-from mlx_ocr.cli import collect_input_documents, resolve_formats
+from mlx_ocr.cli import (
+    InputDocument,
+    PageOCRResult,
+    RenderedPage,
+    collect_input_documents,
+    format_json_document,
+    format_markdown_document,
+    format_txt_document,
+    resolve_format,
+)
+from mlx_ocr.types import BoundingBox, OCRResult, TextDetection, TextRecognition
 
 
-def test_resolve_formats_defaults_to_all_outputs() -> None:
-    assert resolve_formats(None, quiet=False) == ("text", "system", "json", "markdown")
+def make_result(text: str) -> OCRResult:
+    """Build a minimal OCR result for CLI formatting tests."""
+    return OCRResult(
+        detections=(
+            TextDetection(
+                box=BoundingBox(points=((1.0, 2.0), (3.0, 2.0), (3.0, 4.0), (1.0, 4.0))),
+                score=0.8,
+            ),
+        ),
+        recognitions=(TextRecognition(text=text, score=0.7),),
+    )
 
 
-def test_resolve_formats_quiet_default_skips_text() -> None:
-    assert resolve_formats(None, quiet=True) == ("system", "json", "markdown")
+def make_page(text: str, page_index: int | None) -> PageOCRResult:
+    """Build a rendered page OCR result for CLI formatting tests."""
+    name = "img_10.jpg" if page_index is None else f"doc_page_{page_index + 1:04d}"
+    return PageOCRResult(
+        rendered=RenderedPage(
+            image=np.zeros((1, 1, 3), dtype=np.uint8),
+            input_path="/tmp/input",
+            output_name=name,
+            page_index=page_index,
+        ),
+        result=make_result(text),
+    )
 
 
-def test_resolve_formats_preserves_requested_order_without_duplicates() -> None:
-    assert resolve_formats(["markdown", "json", "markdown"], quiet=False) == ("markdown", "json")
+def test_resolve_format_accepts_supported_values() -> None:
+    assert resolve_format("markdown") == "markdown"
+    assert resolve_format("txt") == "txt"
+    assert resolve_format("json") == "json"
+
+
+def test_resolve_format_rejects_unsupported_value() -> None:
+    with pytest.raises(typer.BadParameter, match="format must be one of"):
+        resolve_format("system")
+
+
+def test_format_markdown_document_adds_pdf_page_headings() -> None:
+    markdown = format_markdown_document((make_page("A", 0), make_page("B", 1)))
+
+    assert markdown == "## Page 1\n\nA\n\n## Page 2\n\nB\n"
+
+
+def test_format_txt_document_adds_pdf_page_headings() -> None:
+    text = format_txt_document((make_page("A", 0), make_page("B", 1)))
+
+    assert text == "# Page 1\nA\n\n# Page 2\nB\n"
+
+
+def test_format_json_document_keeps_page_metadata(tmp_path: Path) -> None:
+    document_path = tmp_path / "doc.pdf"
+    document_path.write_bytes(b"%PDF")
+    document = InputDocument(path=document_path, stem="doc", is_pdf=True)
+
+    data = json.loads(format_json_document(document, (make_page("A", 0), make_page("B", 1))))
+
+    assert data["input_path"] == str(document_path.resolve())
+    assert [page["page_index"] for page in data["pages"]] == [0, 1]
+    assert [page["res"]["rec_texts"] for page in data["pages"]] == [["A"], ["B"]]
 
 
 def test_collect_input_documents_accepts_files_and_directories(tmp_path: Path) -> None:

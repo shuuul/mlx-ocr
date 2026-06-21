@@ -10,6 +10,17 @@ This project reimplements PaddleOCRv6 with [MLX](https://github.com/ml-explore/m
 uv sync
 ```
 
+## Agent Skill
+
+Install the repository skill with the `skills` CLI:
+
+```bash
+npx skills add shuuul/mlx-ocr
+```
+
+The skill teaches compatible agents how to run `mlx-ocr` from GitHub with
+`uvx` or `uv tool` on macOS.
+
 ## Quick Start
 
 ```python
@@ -23,16 +34,10 @@ result.result.print()
 print(result.timing.as_dict())
 ```
 
-Or use the example script:
-
-```bash
-uv run python examples/run_ocr.py --variant medium examples/images/img_10.jpg
-```
-
 Or use the installed CLI:
 
 ```bash
-uv run mlx-ocr --path examples/images/img_10.jpg --output ocr-output
+uv run mlx-ocr --path examples/images/img_10.jpg --format markdown
 ```
 
 The CLI accepts image files, PDF files, or a non-recursive directory of supported
@@ -40,21 +45,25 @@ inputs. PDF page ranges use 0-based inclusive page indexes, matching MinerU's
 CLI style:
 
 ```bash
-uv run mlx-ocr -p docs/report.pdf -o ocr-output --start 0 --end 2
+uv run mlx-ocr -p docs/report.pdf --format markdown --start 0 --end 2
 ```
 
-Output formats align with PaddleOCR:
+Use `--format txt`, `--format markdown`, or `--format json` to choose the
+printed output format. PDF outputs preserve page boundaries with page headings
+in text/Markdown and `page_index` metadata in JSON.
 
-- `system_results.txt` — `tools/infer/predict_system.py` TSV (`transcription` + `points`)
-- `<output>/<stem>/ocr/{page-or-image}_res.json` — PaddleOCR 3.x `save_to_json` layout
-- `<output>/<stem>/ocr/<stem>.md` — Markdown body text only, one file per input document
-- `<output>/<stem>/ocr/<stem>_origin.pdf` — original PDF copy for PDF inputs
-
-Use repeated `--format` flags to restrict output, for example:
+To save output files instead of printing to stdout, pass `--output`:
 
 ```bash
-uv run mlx-ocr -p examples/images/img_10.jpg -f markdown -f json -o ocr-output
+uv run mlx-ocr -p docs/report.pdf --format json --output ocr-output
 ```
+
+Saved files use this layout:
+
+- `<output>/<stem>/ocr/<stem>.txt` — plain text output
+- `<output>/<stem>/ocr/<stem>.md` — Markdown output
+- `<output>/<stem>/ocr/<stem>.json` — JSON output with PaddleOCR-style `res` fields per page
+- `<output>/<stem>/ocr/<stem>_origin.pdf` — original PDF copy for PDF inputs
 
 Optional MCP support is available as an extra:
 

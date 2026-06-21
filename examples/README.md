@@ -1,6 +1,6 @@
 # mlx-ocr examples
 
-Sample images and scripts aligned with [PaddleOCR](../PaddleOCR) PP-OCRv6 configs and docs.
+Sample images and documents aligned with [PaddleOCR](../PaddleOCR) PP-OCRv6 configs and docs.
 
 ## Images
 
@@ -18,12 +18,19 @@ Sources:
 
 ## Run
 
+Use the project CLI for all examples:
+
 ```bash
-uv run python examples/run_ocr.py --variant medium images/img_10.jpg
-uv run python examples/run_ocr.py --variant tiny --output output/ images/*.jpg
+uv run mlx-ocr --path examples/images/img_10.jpg --format markdown
+uv run mlx-ocr --path examples/images --format json --output ocr-output
+uv run mlx-ocr --path /path/to/document.pdf --format markdown --start 0 --end 2
 ```
 
-Output formats match upstream:
+`--format` selects the result format:
 
-- `system_results.txt` — Paddle `tools/infer/predict_system.py` TSV
-- `{basename}_res.json` — PaddleOCR 3.x `save_to_json` layout
+- `txt` — plain recognized text
+- `markdown` — Markdown body text, with PDF page headings for multi-page input
+- `json` — JSON output with PaddleOCR-style `res` fields and PDF `page_index` metadata
+
+`--output` is optional. If omitted, the selected format is printed to stdout. If
+provided, files are written under `<output>/<stem>/ocr/`.
