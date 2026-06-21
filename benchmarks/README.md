@@ -140,7 +140,3 @@ records = benchmark_variant(
 ```
 
 Install `onnxruntime-gpu` and ensure CUDA is available. Optionally pass `engine_config` with `providers=["CUDAExecutionProvider"]` through `build_paddle_pipeline()` if needed for your environment.
-
-## Legacy entry point
-
-`tests/scripts/benchmark_pipeline.py` is a thin wrapper around `benchmarks/runners/mlx_ocr.py` for backward compatibility.

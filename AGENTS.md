@@ -86,6 +86,11 @@ Python 3.12+. Package manager: [uv](https://docs.astral.sh/uv/).
 #### Validation and Failure Semantics
 
 - Validate external inputs at boundaries.
+- Treat the OCR pipeline internals as controlled once boundary inputs,
+  downloaded artifacts, and parsed configs have been validated.
+- Do not add repeated defensive checks inside internal helpers for shapes,
+  enum-like strings, or impossible states that are already guaranteed by the
+  caller or by committed model configs.
 - Fail loudly when required data, required outputs, or required intermediate artifacts are missing.
 - Preserve useful failure signals.
 - Raise explicit, domain-appropriate errors when validation fails.
@@ -104,6 +109,10 @@ Python 3.12+. Package manager: [uv](https://docs.astral.sh/uv/).
 #### Anti-Patterns
 
 - Thin wrappers with no behavioral value.
+- Public methods that only import and forward to module-level functions.
+- Test-only convenience helpers exported from production packages.
+- Internal validation repeated across multiple layers of the same controlled
+  data path.
 - Redundant helpers that duplicate existing code paths.
 - Silent fallback logic for required data.
 - Broad exception handling with vague recovery.

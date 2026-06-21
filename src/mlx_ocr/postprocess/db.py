@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Mapping
 
 import cv2
 import numpy as np
@@ -75,37 +75,6 @@ def db_postprocess(
     return tuple(detections)
 
 
-def db_postprocess_batch(
-    prob_maps: np.ndarray,
-    shapes: Sequence[tuple[float, float, float, float]],
-    params: Mapping[str, float | int | str],
-) -> tuple[tuple[TextDetection, ...], ...]:
-    """Decode a batch of DB probability maps.
-
-    Args:
-        prob_maps: Batch of maps in NCHW layout ``[B, 1, H, W]``.
-        shapes: Preprocess shape metadata for each batch item.
-        params: Post-process parameters from ``inference.yml``.
-
-    Returns:
-        Detections for each batch item.
-    """
-    results: list[tuple[TextDetection, ...]] = []
-    for index in range(prob_maps.shape[0]):
-        results.append(
-            db_postprocess(
-                prob_maps[index : index + 1],
-                shapes[index],
-                thresh=float(params["thresh"]),
-                box_thresh=float(params["box_thresh"]),
-                max_candidates=int(params["max_candidates"]),
-                unclip_ratio=float(params["unclip_ratio"]),
-                score_mode=str(params.get("score_mode", "fast")),
-            )
-        )
-    return tuple(results)
-
-
 def postprocess_params_from_inference(
     inference: Mapping[str, object],
 ) -> dict[str, float | int | str]:
@@ -174,7 +143,7 @@ def _boxes_from_bitmap(
 
 def _mini_boxes(contour: np.ndarray) -> tuple[list[list[float]], float]:
     bounding_box = cv2.minAreaRect(contour)
-    points = sorted(list(cv2.boxPoints(bounding_box)), key=lambda item: item[0])
+    points = sorted(cv2.boxPoints(bounding_box), key=lambda item: item[0])
     if points[1][1] > points[0][1]:
         index_1, index_4 = 0, 1
     else:

@@ -63,7 +63,7 @@ def patch_recognition_hub_tensors(
     Hugging Face ``small`` and ``medium`` recognition checkpoints swap
     ``conv_reduce`` and ``skip_conv`` tensors in ``head.encoder.conv_block``
     and ship incorrect conv weights. Backbone weights match Paddle inference;
-    only the two 1×1 head conv blocks need correction from official pretrained
+    only the two 1x1 head conv blocks need correction from official pretrained
     checkpoints.
 
     Args:

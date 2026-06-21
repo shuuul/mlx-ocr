@@ -30,12 +30,11 @@ class LCNetV4RecBlock(nn.Module):
             )
         else:
             padding = (kernel - 1) // 2
-            stride_value = stride if isinstance(stride, int) else stride
             self.token_conv = Conv2DBN(
                 in_channels,
                 in_channels,
                 kernel_size=kernel,
-                stride=stride_value,
+                stride=stride,
                 padding=padding,
                 groups=in_channels,
             )

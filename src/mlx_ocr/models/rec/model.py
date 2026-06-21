@@ -90,16 +90,14 @@ def split_recognition_attention_tensors(
     remaining: dict[str, mx.array] = {}
     for source_key, value in tensors.items():
         rewritten = rewrite_recognition_hub_key(source_key)
-        if rewritten.endswith(".self_attn.qkv.weight") or rewritten.endswith(".self_attn.qkv.bias"):
+        if rewritten.endswith((".self_attn.qkv.weight", ".self_attn.qkv.bias")):
             prefix = rewritten[: rewritten.rindex(".qkv.")]
             part = "weight" if rewritten.endswith(".weight") else "bias"
             chunk = value.shape[0] // 3
             for proj, index in (("query_proj", 0), ("key_proj", 1), ("value_proj", 2)):
                 direct[f"{prefix}.{proj}.{part}"] = value[index * chunk : (index + 1) * chunk]
             continue
-        if rewritten.endswith(".self_attn.projection.weight") or rewritten.endswith(
-            ".self_attn.projection.bias"
-        ):
+        if rewritten.endswith((".self_attn.projection.weight", ".self_attn.projection.bias")):
             part = "weight" if rewritten.endswith(".weight") else "bias"
             prefix = rewritten[: rewritten.rindex(".projection.")]
             direct[f"{prefix}.out_proj.{part}"] = value
@@ -294,20 +292,3 @@ class RecognitionModel(nn.Module):
         model.eval()
         fuse_for_inference(model)
         return model
-
-
-def load_recognition_model(
-    artifacts: HubArtifacts,
-    *,
-    weight_source: RecognitionWeightSource = "auto",
-) -> RecognitionModel:
-    """Load a recognition model with weights from Hub artifacts.
-
-    Args:
-        artifacts: Downloaded recognition Hub files.
-        weight_source: Weight loading mode; see ``RecognitionModel.from_artifacts``.
-
-    Returns:
-        Loaded recognition model in eval mode.
-    """
-    return RecognitionModel.from_artifacts(artifacts, weight_source=weight_source)

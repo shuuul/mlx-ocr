@@ -193,10 +193,10 @@ def save_npy(path: Path, array: np.ndarray) -> None:
 def regen_rec_softmax_mlx(variant: Variant, rec_input: np.ndarray) -> np.ndarray:
     """Run MLX recognition forward on preprocessed input for golden export."""
     from mlx_ocr.hub.download import download_model
-    from mlx_ocr.models.rec import load_recognition_model
+    from mlx_ocr.models.rec import RecognitionModel
     from mlx_ocr.preprocess.det import nchw_to_nhwc
 
-    model = load_recognition_model(download_model(variant, "rec"))
+    model = RecognitionModel.from_artifacts(download_model(variant, "rec"))
     return np.asarray(model(nchw_to_nhwc(rec_input)), dtype=np.float32)
 
 
@@ -298,7 +298,7 @@ def main() -> None:
 
     image_path = IMAGES_ROOT / "sample_doc.jpg"
     image = ensure_sample_image(image_path)
-    variants: tuple[Variant, ...] = VARIANTS if args.all else (args.variant,)  # type: ignore[assignment]
+    variants: tuple[Variant, ...] = VARIANTS if args.all else (args.variant,)
 
     for variant in variants:
         logger.info("regenerating goldens for %s", variant)

@@ -16,7 +16,7 @@ from mlx_ocr.pipeline import PP_OCRv6, sorted_detections
 from mlx_ocr.pipeline.crop import sorted_box_indices
 from mlx_ocr.pipeline.memory import MemoryPolicy
 from mlx_ocr.postprocess.ctc import ctc_decode
-from mlx_ocr.preprocess.rec import rec_preprocess_crop_from_image
+from mlx_ocr.preprocess.rec import rec_preprocess
 from mlx_ocr.types import TextDetection
 from tests.conftest import GOLDEN_ROOT, load_golden_npy
 from tests.reference.compare import assert_allclose
@@ -37,10 +37,6 @@ def _sort_golden_boxes(boxes: list[list[list[float]]]) -> list[list[list[float]]
     return [boxes[int(index)] for index in order]
 
 
-def _detection_points(detection: TextDetection) -> np.ndarray:
-    return np.asarray(detection.box.points, dtype=np.float32)
-
-
 def _assert_boxes_match(
     actual: tuple[TextDetection, ...],
     expected_boxes: list[list[list[float]]],
@@ -50,7 +46,10 @@ def _assert_boxes_match(
     assert len(actual) == len(expected_boxes), (
         f"{variant}: expected {len(expected_boxes)} detections, got {len(actual)}"
     )
-    actual_points = np.stack([_detection_points(detection) for detection in actual], axis=0)
+    actual_points = np.stack(
+        [np.asarray(detection.box.points, dtype=np.float32) for detection in actual],
+        axis=0,
+    )
     expected_points = np.asarray(expected_boxes, dtype=np.float32)
     np.testing.assert_allclose(
         actual_points,
@@ -76,7 +75,9 @@ def test_pipeline_e2e_matches_golden(
     ordered = sorted_detections(result.detections)
     _assert_boxes_match(ordered, expected_boxes, variant=variant)
 
-    preprocessed = rec_preprocess_crop_from_image(sample_bgr_image)
+    crop = sample_bgr_image[130:190, 40:280].copy()
+    height, width = crop.shape[:2]
+    preprocessed = rec_preprocess(crop, max_wh_ratio=width / float(height))
     softmax = np.asarray(pipeline.recognizer(preprocessed.image), dtype=np.float32)
     expected_softmax = load_golden_npy(GOLDEN_ROOT / variant / "rec" / "softmax.npy")
     assert_allclose(softmax, expected_softmax, rtol=1e-4, atol=2e-3, err_msg=f"{variant} rec")
@@ -142,8 +143,7 @@ def test_pp_ocrv6_from_hub_accepts_stage_variants(
     monkeypatch.setattr("mlx_ocr.pipeline.ocr.download_model", fake_download_model)
     monkeypatch.setattr(PP_OCRv6, "from_artifacts", classmethod(fake_from_artifacts))
 
-    pipeline = PP_OCRv6.from_hub("medium", det_variant="small")
+    PP_OCRv6.from_hub("medium", det_variant="small")
 
-    assert pipeline is not None
     assert downloads == [("small", "det"), ("medium", "rec")]
     assert constructed == [("medium", "small", "medium")]

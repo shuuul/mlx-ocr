@@ -36,26 +36,30 @@ MINERU_PYTHON = os.environ.get("MINERU_BENCHMARK_PYTHON", sys.executable)
 
 def parse_backends(value: str) -> list[Backend]:
     """Parse a comma-separated backend list."""
-    backends = [item.strip() for item in value.split(",") if item.strip()]
-    if not backends:
+    raw_backends = [item.strip() for item in value.split(",") if item.strip()]
+    if not raw_backends:
         raise argparse.ArgumentTypeError("at least one backend is required")
-    invalid = [backend for backend in backends if backend not in BACKENDS]
-    if invalid:
-        raise argparse.ArgumentTypeError(f"unknown backends: {', '.join(invalid)}")
-    return backends  # type: ignore[return-value]
+    backends: list[Backend] = []
+    for backend in raw_backends:
+        if backend not in BACKENDS:
+            raise argparse.ArgumentTypeError(f"unknown backend: {backend}")
+        backends.append(backend)
+    return backends
 
 
 def parse_variants(values: list[str] | None, variant: str | None) -> list[Variant]:
     """Resolve variant CLI arguments."""
     if values:
-        invalid = [item for item in values if item not in VARIANTS]
-        if invalid:
-            raise SystemExit(f"unknown variants: {', '.join(invalid)}")
-        return values  # type: ignore[return-value]
+        variants: list[Variant] = []
+        for item in values:
+            if item not in VARIANTS:
+                raise SystemExit(f"unknown variant: {item}")
+            variants.append(item)
+        return variants
     if variant is not None:
         if variant not in VARIANTS:
             raise SystemExit(f"unknown variant: {variant}")
-        return [variant]  # type: ignore[list-item]
+        return [variant]
     return list(VARIANTS)
 
 

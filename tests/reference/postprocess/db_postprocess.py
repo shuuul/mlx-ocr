@@ -159,7 +159,7 @@ class DBPostProcess:
 
     def get_mini_boxes(self, contour: np.ndarray) -> tuple[list[list[float]], float]:
         bounding_box = cv2.minAreaRect(contour)
-        points = sorted(list(cv2.boxPoints(bounding_box)), key=lambda x: x[0])
+        points = sorted(cv2.boxPoints(bounding_box), key=lambda x: x[0])
 
         if points[1][1] > points[0][1]:
             index_1, index_4 = 0, 1

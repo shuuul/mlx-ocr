@@ -7,7 +7,7 @@ import pytest
 
 from mlx_ocr.hub.download import download_model
 from mlx_ocr.hub.registry import ModelVariant
-from mlx_ocr.models.det import DetectionModel, load_detection_model
+from mlx_ocr.models.det import DetectionModel
 from mlx_ocr.preprocess.det import det_preprocess, nhwc_prob_to_nchw
 from tests.conftest import GOLDEN_ROOT, load_golden_npy
 from tests.reference.compare import assert_allclose
@@ -19,7 +19,7 @@ def test_det_forward_matches_golden(
     variant: str,
 ) -> None:
     """Loaded detection models reproduce committed golden probability maps."""
-    model = load_detection_model(download_model(variant, "det"))
+    model = DetectionModel.from_artifacts(download_model(variant, "det"))
     preprocessed = det_preprocess(sample_bgr_image)
     prob_map = model(preprocessed.image)
     actual = nhwc_prob_to_nchw(prob_map)
@@ -40,5 +40,5 @@ def test_detection_model_from_artifacts(sample_bgr_image: np.ndarray) -> None:
 @pytest.mark.parametrize("variant", ("tiny", "small", "medium"))
 def test_det_weight_load_strict(variant: ModelVariant) -> None:
     """Strict weight loading succeeds for every detection variant."""
-    model = load_detection_model(download_model(variant, "det"))
+    model = DetectionModel.from_artifacts(download_model(variant, "det"))
     assert isinstance(model, DetectionModel)

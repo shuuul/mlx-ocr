@@ -20,14 +20,10 @@ class OCRTiming:
     rec_s: float
     total_s: float
 
-    def as_dict(self) -> dict[str, float]:
-        """Return timing fields as a plain mapping."""
-        return {"det": self.det_s, "rec": self.rec_s, "all": self.total_s}
-
 
 def box_points_int32(box: BoundingBox) -> list[list[int]]:
     """Convert a bounding box to Paddle ``predict_system`` int32 points."""
-    return [[int(round(x)), int(round(y))] for x, y in box.points]
+    return [[round(x), round(y)] for x, y in box.points]
 
 
 def to_system_results_entries(result: OCRResult) -> list[dict[str, object]]:
@@ -64,45 +60,15 @@ def to_system_results_line(result: OCRResult, basename: str) -> str:
     return f"{basename}\t{json.dumps(payload, ensure_ascii=False)}\n"
 
 
-def save_system_results(
-    result: OCRResult,
-    output_dir: Path,
-    basename: str,
-) -> Path:
-    """Write ``system_results.txt`` in Paddle ``predict_system`` format.
-
-    Args:
-        result: OCR output for a single image.
-        output_dir: Directory to create or reuse.
-        basename: Image file name for the TSV key.
-
-    Returns:
-        Path to the written ``system_results.txt`` file.
-    """
-    output_dir.mkdir(parents=True, exist_ok=True)
-    path = output_dir / "system_results.txt"
-    path.write_text(to_system_results_line(result, basename), encoding="utf-8")
-    logger.info("Wrote %s", path)
-    return path
-
-
-def to_markdown(
-    result: OCRResult,
-    *,
-    title: str | None = None,
-    input_path: str | None = None,
-) -> str:
+def to_markdown(result: OCRResult) -> str:
     """Format OCR output as Markdown body text.
 
     Args:
         result: OCR output for a single image.
-        title: Unused title kept for API consistency.
-        input_path: Unused source path kept for API consistency.
 
     Returns:
         Recognized text lines separated by newlines.
     """
-    _ = title, input_path
     if not result.recognitions:
         return ""
     return "\n".join(recognition.text for recognition in result.recognitions) + "\n"
@@ -133,7 +99,7 @@ def save_to_markdown(
         markdown_path = save_path
 
     markdown_path.write_text(
-        to_markdown(result, title=markdown_path.stem, input_path=input_path),
+        to_markdown(result),
         encoding="utf-8",
     )
     logger.info("Wrote %s", markdown_path)

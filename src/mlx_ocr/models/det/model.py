@@ -207,8 +207,3 @@ class DetectionModel(nn.Module):
         model.eval()
         fuse_for_inference(model)
         return model
-
-
-def load_detection_model(artifacts: HubArtifacts) -> DetectionModel:
-    """Load a detection model with weights from Hub artifacts."""
-    return DetectionModel.from_artifacts(artifacts)

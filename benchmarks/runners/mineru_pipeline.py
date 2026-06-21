@@ -12,8 +12,9 @@ import numpy as np
 from mineru.model.ocr.pytorch_paddle import PytorchPaddleOCR
 from mineru.utils.config_reader import get_device
 
+from benchmarks.common.images import resolve_example_images
 from benchmarks.common.memory import memory_snapshot
-from benchmarks.common.runner_cli import add_runner_args, resolve_runner_images
+from benchmarks.common.runner_cli import add_runner_args
 from benchmarks.common.types import BenchmarkRecord, Variant, records_to_json
 
 MINERU_LANG_BY_VARIANT: dict[Variant, str] = {
@@ -100,7 +101,7 @@ def main() -> None:
     if args.warmup < 0 or args.runs < 1:
         raise SystemExit("--warmup must be >= 0 and --runs must be >= 1")
 
-    images = resolve_runner_images(args.images)
+    images = resolve_example_images(tuple(args.images) if args.images else None)
     lang = MINERU_LANG_BY_VARIANT[args.variant]
     device = get_device()
     print(

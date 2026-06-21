@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from mlx_ocr.output import to_markdown, to_system_results_line
+from mlx_ocr.output import save_to_json, save_to_markdown, to_markdown, to_system_results_line
 from mlx_ocr.types import BoundingBox, OCRResult, TextDetection, TextRecognition
 
 
@@ -41,7 +41,7 @@ def test_save_to_json_writes_paddlex_layout(tmp_path: Path) -> None:
         ),
         recognitions=(TextRecognition(text="A", score=0.7),),
     )
-    path = result.save_to_json(tmp_path, input_path="examples/images/img_10.jpg")
+    path = save_to_json(result, tmp_path, input_path="examples/images/img_10.jpg")
     assert path.name == "img_10_res.json"
     data = json.loads(path.read_text(encoding="utf-8"))
     assert data["res"]["rec_texts"] == ["A"]
@@ -60,7 +60,7 @@ def test_to_markdown_returns_text_body_only() -> None:
         recognitions=(TextRecognition(text="A|B", score=0.7),),
     )
 
-    markdown = to_markdown(result, title="img_10", input_path="examples/images/img_10.jpg")
+    markdown = to_markdown(result)
 
     assert markdown == "A|B\n"
 
@@ -71,7 +71,7 @@ def test_save_to_markdown_uses_input_stem(tmp_path: Path) -> None:
         recognitions=(),
     )
 
-    path = result.save_to_markdown(tmp_path, input_path="examples/images/img_10.jpg")
+    path = save_to_markdown(result, tmp_path, input_path="examples/images/img_10.jpg")
 
     assert path == tmp_path / "img_10.md"
     assert path.read_text(encoding="utf-8") == ""

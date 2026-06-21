@@ -25,30 +25,6 @@ VARIANTS = ("tiny", "small", "medium")
 
 
 @pytest.fixture(scope="session")
-def tests_root() -> Path:
-    """Return the ``tests/`` directory."""
-    return TESTS_ROOT
-
-
-@pytest.fixture(scope="session")
-def data_root() -> Path:
-    """Return ``tests/data/``."""
-    return DATA_ROOT
-
-
-@pytest.fixture(scope="session")
-def golden_root() -> Path:
-    """Return ``tests/data/golden/``."""
-    return GOLDEN_ROOT
-
-
-@pytest.fixture(scope="session")
-def reference_root() -> Path:
-    """Return ``tests/reference/``."""
-    return REFERENCE_ROOT
-
-
-@pytest.fixture(scope="session")
 def sample_bgr_image() -> np.ndarray:
     """Load the canonical OCR test image as BGR uint8."""
     image_path = IMAGES_ROOT / "sample_doc.jpg"
@@ -60,9 +36,11 @@ def sample_bgr_image() -> np.ndarray:
     return image
 
 
-@pytest.fixture(scope="session")
-def det_preprocess_ops() -> tuple[DetResizeForTest, NormalizeImage, ToCHWImage]:
-    """Default PP-OCRv6 detection preprocess operators."""
+@pytest.fixture
+def det_preprocessed(
+    sample_bgr_image: np.ndarray,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Run vendored detection preprocess on the sample image."""
     resize = DetResizeForTest(limit_side_len=960, limit_type="min")
     normalize = NormalizeImage(
         scale="1./255.",
@@ -71,16 +49,6 @@ def det_preprocess_ops() -> tuple[DetResizeForTest, NormalizeImage, ToCHWImage]:
         order="hwc",
     )
     to_chw = ToCHWImage()
-    return resize, normalize, to_chw
-
-
-@pytest.fixture
-def det_preprocessed(
-    sample_bgr_image: np.ndarray,
-    det_preprocess_ops: tuple[DetResizeForTest, NormalizeImage, ToCHWImage],
-) -> tuple[np.ndarray, np.ndarray]:
-    """Run vendored detection preprocess on the sample image."""
-    resize, normalize, to_chw = det_preprocess_ops
     data: dict[str, object] = {"image": sample_bgr_image.copy()}
     data = resize(data)
     shape = np.asarray(data["shape"], dtype=np.float32)

@@ -112,7 +112,7 @@ def get_minarea_rect_crop(image: np.ndarray, points: np.ndarray) -> np.ndarray:
         Rectified crop in BGR layout.
     """
     bounding_box = cv2.minAreaRect(points.astype(np.int32))
-    corner_points = sorted(list(cv2.boxPoints(bounding_box)), key=lambda item: item[0])
+    corner_points = sorted(cv2.boxPoints(bounding_box), key=lambda item: item[0])
 
     if corner_points[1][1] > corner_points[0][1]:
         index_a, index_d = 0, 1

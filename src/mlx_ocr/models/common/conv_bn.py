@@ -47,67 +47,6 @@ def apply_same_padding_nhwc(
     return mx.pad(x, ((0, 0), pad_h, pad_w, (0, 0)))
 
 
-def _resolve_padding(
-    kernel_size: KernelSize,
-    padding: Padding,
-) -> int | tuple[int, int]:
-    if isinstance(padding, str):
-        if padding.upper() != "SAME":
-            raise ValueError(f"unsupported padding string: {padding}")
-        return 0
-    if isinstance(padding, int):
-        return padding
-    return _as_pair(padding)
-
-
-class FusedConv2d(nn.Module):
-    """Inference-time fused ``Conv2d`` with bias."""
-
-    def __init__(
-        self,
-        in_channels: int,
-        out_channels: int,
-        kernel_size: KernelSize = 3,
-        *,
-        stride: int | tuple[int, int] = 1,
-        padding: Padding = 0,
-        groups: int = 1,
-        bias: bool = True,
-    ) -> None:
-        """Initialize a fused convolution layer.
-
-        Args:
-            in_channels: Input channel count.
-            out_channels: Output channel count.
-            kernel_size: Spatial kernel size.
-            stride: Convolution stride.
-            padding: Explicit padding or ``SAME`` for symmetric padding.
-            groups: Convolution groups.
-            bias: Whether the layer includes a bias vector.
-        """
-        resolved_padding = _resolve_padding(kernel_size, padding)
-        self.conv = nn.Conv2d(
-            in_channels,
-            out_channels,
-            kernel_size,
-            stride=stride,
-            padding=resolved_padding,
-            groups=groups,
-            bias=bias,
-        )
-
-    def __call__(self, x: mx.array) -> mx.array:
-        """Run the fused convolution.
-
-        Args:
-            x: Input tensor in NHWC layout.
-
-        Returns:
-            Convolved output tensor.
-        """
-        return self.conv(x)
-
-
 class Conv2DBN(nn.Module):
     """Convolution followed by batch normalization."""
 
@@ -132,13 +71,20 @@ class Conv2DBN(nn.Module):
             padding: Explicit padding or ``SAME`` for symmetric padding.
             groups: Convolution groups.
         """
-        resolved_padding = _resolve_padding(kernel_size, padding)
+        conv_padding: int | tuple[int, int]
+        if isinstance(padding, str):
+            conv_padding = 0
+        elif isinstance(padding, int):
+            conv_padding = padding
+        else:
+            conv_padding = _as_pair(padding)
+
         self.conv = nn.Conv2d(
             in_channels,
             out_channels,
             kernel_size,
             stride=stride,
-            padding=resolved_padding,
+            padding=conv_padding,
             groups=groups,
             bias=False,
         )
@@ -205,7 +151,9 @@ class ConvBNAct(nn.Module):
         self.dynamic_same_padding = isinstance(padding, str) and padding.upper() == "SAME"
         self.kernel_size = _as_pair(kernel_size)
         self.stride = _as_pair(stride)
-        resolved_padding = _resolve_padding(kernel_size, padding)
+        resolved_padding = 0 if self.dynamic_same_padding else padding
+        if not isinstance(resolved_padding, int):
+            resolved_padding = _as_pair(resolved_padding)
 
         if fused:
             self.conv = nn.Conv2d(

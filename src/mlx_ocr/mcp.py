@@ -10,6 +10,7 @@ from typing import ParamSpec, Protocol, TypeVar, cast
 from mlx_ocr.cli import read_bgr_image
 from mlx_ocr.hub.rec_weight_patch import RecognitionWeightSource
 from mlx_ocr.hub.registry import ModelVariant
+from mlx_ocr.output import to_markdown
 from mlx_ocr.pipeline import PP_OCRv6
 
 P = ParamSpec("P")
@@ -75,7 +76,7 @@ def create_server() -> MCPServer:
         )
         try:
             result = ocr.predict(read_bgr_image(path)).result
-            return result.to_markdown(title=path.name, input_path=str(path.resolve()))
+            return to_markdown(result)
         finally:
             ocr.close()
 

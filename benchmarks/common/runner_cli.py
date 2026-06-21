@@ -5,7 +5,6 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
-from benchmarks.common.images import resolve_example_images
 from benchmarks.common.types import VARIANTS
 
 
@@ -42,10 +41,3 @@ def add_runner_args(parser: argparse.ArgumentParser) -> None:
         required=True,
         help="Path to write JSON benchmark records.",
     )
-
-
-def resolve_runner_images(image_args: list[Path] | None) -> list[Path]:
-    """Resolve runner image paths from CLI arguments."""
-    if image_args:
-        return resolve_example_images(tuple(image_args))
-    return resolve_example_images()

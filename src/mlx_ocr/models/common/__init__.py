@@ -1,7 +1,7 @@
 """Shared MLX primitives for PP-OCRv6 model code."""
 
 from mlx_ocr.models.common.activations import ActivationName, HardSigmoid, build_activation
-from mlx_ocr.models.common.conv_bn import Conv2DBN, ConvBNAct, FusedConv2d
+from mlx_ocr.models.common.conv_bn import Conv2DBN, ConvBNAct
 from mlx_ocr.models.common.fuse import fuse_for_inference
 from mlx_ocr.models.common.norm import LayerNorm
 from mlx_ocr.models.common.rep_conv import DilatedReparamBlock, RepDWConv
@@ -12,7 +12,6 @@ __all__ = [
     "Conv2DBN",
     "ConvBNAct",
     "DilatedReparamBlock",
-    "FusedConv2d",
     "HardSigmoid",
     "LayerNorm",
     "RepDWConv",

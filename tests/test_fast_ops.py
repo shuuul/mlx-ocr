@@ -10,9 +10,9 @@ from mlx_ocr.hub.download import download_model
 from mlx_ocr.models.common.conv_bn import Conv2DBN
 from mlx_ocr.models.common.fuse import fuse_conv_batch_norm, fuse_for_inference
 from mlx_ocr.models.common.norm import LayerNorm
-from mlx_ocr.models.det.model import load_detection_model
-from mlx_ocr.models.rec.model import load_recognition_model
-from mlx_ocr.preprocess.rec import rec_preprocess_crop_from_image
+from mlx_ocr.models.det.model import DetectionModel
+from mlx_ocr.models.rec.model import RecognitionModel
+from mlx_ocr.preprocess.rec import rec_preprocess
 from tests.conftest import GOLDEN_ROOT, load_golden_npy
 from tests.reference.compare import assert_allclose
 
@@ -55,8 +55,10 @@ def test_fuse_for_inference_preserves_recognition_golden(
     sample_bgr_image: np.ndarray,
 ) -> None:
     """Fused recognition weights still match committed softmax goldens."""
-    model = load_recognition_model(download_model("small", "rec"))
-    preprocessed = rec_preprocess_crop_from_image(sample_bgr_image)
+    model = RecognitionModel.from_artifacts(download_model("small", "rec"))
+    crop = sample_bgr_image[130:190, 40:280].copy()
+    height, width = crop.shape[:2]
+    preprocessed = rec_preprocess(crop, max_wh_ratio=width / float(height))
     actual = np.asarray(model(preprocessed.image), dtype=np.float32)
     expected = load_golden_npy(GOLDEN_ROOT / "small" / "rec" / "softmax.npy")
     assert_allclose(actual, expected, rtol=1e-4, atol=2e-3)
@@ -64,7 +66,7 @@ def test_fuse_for_inference_preserves_recognition_golden(
 
 def test_fuse_for_inference_runs_on_detection_model() -> None:
     """Detection models fuse conv+bn blocks after loading."""
-    model = load_detection_model(download_model("tiny", "det"))
+    model = DetectionModel.from_artifacts(download_model("tiny", "det"))
     x = mx.zeros((1, 64, 64, 3))
     output = model(x)
     mx.eval(output)

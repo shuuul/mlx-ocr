@@ -32,7 +32,7 @@ exclude = [
 ]
 
 [lint]
-select = ["E", "F", "I", "UP"]
+select = ["B", "C4", "E", "F", "I", "PIE", "RUF", "UP"]
 ignore = [
     "E501", # Line too long (handled by formatter)
 ]

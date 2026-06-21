@@ -218,4 +218,4 @@ class CTCLabelDecode(BaseRecLabelDecode):
         return text, label_text
 
     def add_special_char(self, dict_character: list[str]) -> list[str]:
-        return ["blank"] + dict_character
+        return ["blank", *dict_character]

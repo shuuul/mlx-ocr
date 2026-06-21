@@ -14,8 +14,8 @@ import numpy as np
 from mlx_ocr.hub.download import HubArtifacts, download_model
 from mlx_ocr.hub.rec_weight_patch import RecognitionWeightSource
 from mlx_ocr.hub.registry import ModelVariant
-from mlx_ocr.models.det.model import DetectionModel, load_detection_model
-from mlx_ocr.models.rec.model import RecognitionModel, load_recognition_model
+from mlx_ocr.models.det.model import DetectionModel
+from mlx_ocr.models.rec.model import RecognitionModel
 from mlx_ocr.output import OCRTiming
 from mlx_ocr.pipeline.config import PipelineConfig, pipeline_config_from_artifacts
 from mlx_ocr.pipeline.crop import crop_text_regions, sorted_detections
@@ -152,8 +152,8 @@ class PP_OCRv6:
         )
         memory = PipelineMemoryRuntime(memory_policy or MemoryPolicy())
         memory.apply_init_limits()
-        detector = load_detection_model(det_artifacts)
-        recognizer = load_recognition_model(
+        detector = DetectionModel.from_artifacts(det_artifacts)
+        recognizer = RecognitionModel.from_artifacts(
             rec_artifacts,
             weight_source=rec_weight_source,
         )

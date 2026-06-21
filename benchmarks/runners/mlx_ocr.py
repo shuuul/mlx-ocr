@@ -11,8 +11,9 @@ import cv2
 import mlx.core as mx
 import numpy as np
 
+from benchmarks.common.images import resolve_example_images
 from benchmarks.common.memory import memory_snapshot
-from benchmarks.common.runner_cli import add_runner_args, resolve_runner_images
+from benchmarks.common.runner_cli import add_runner_args
 from benchmarks.common.types import BenchmarkRecord, Variant, records_to_json
 from mlx_ocr import PP_OCRv6
 
@@ -84,7 +85,7 @@ def main() -> None:
     if args.warmup < 0 or args.runs < 1:
         raise SystemExit("--warmup must be >= 0 and --runs must be >= 1")
 
-    images = resolve_runner_images(args.images)
+    images = resolve_example_images(tuple(args.images) if args.images else None)
     print(
         f"benchmarking backend=mlx variant={args.variant} "
         f"images={[path.name for path in images]}...",

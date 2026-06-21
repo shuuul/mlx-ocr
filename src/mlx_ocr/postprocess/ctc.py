@@ -94,25 +94,3 @@ def ctc_decode(
             text = _pred_reverse(text)
         results.append(TextRecognition(text=text, score=score))
     return tuple(results)
-
-
-def ctc_decode_from_dict_path(
-    preds: np.ndarray,
-    dict_path: Path,
-    *,
-    use_space_char: bool = True,
-    reverse: bool = False,
-) -> tuple[TextRecognition, ...]:
-    """Decode CTC predictions using a dictionary file.
-
-    Args:
-        preds: Softmax tensor ``[B, T, num_classes]``.
-        dict_path: Path to the character dictionary.
-        use_space_char: Whether the dictionary includes a space character.
-        reverse: Whether to reverse mixed Arabic-like predictions.
-
-    Returns:
-        One ``TextRecognition`` per batch item.
-    """
-    characters = load_character_dict(dict_path, use_space_char=use_space_char)
-    return ctc_decode(preds, characters, reverse=reverse)

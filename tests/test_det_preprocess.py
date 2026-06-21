@@ -19,11 +19,6 @@ def test_det_preprocess_matches_reference(
     result = det_preprocess(sample_bgr_image)
     actual = np.asarray(result.nchw)
     assert_allclose(actual, reference_tensor, err_msg="det preprocessed tensor")
-    assert_allclose(
-        np.asarray(reference_shape, dtype=np.float32),
-        np.asarray(reference_shape, dtype=np.float32),
-        err_msg="det shape metadata",
-    )
     assert result.shape == (
         float(reference_shape[0]),
         float(reference_shape[1]),
@@ -42,7 +37,7 @@ def test_det_preprocess_golden_per_variant(
     expected_shape = load_golden_npy(GOLDEN_ROOT / variant / "det" / "shape.npy")
     assert_allclose(np.asarray(result.nchw), expected_tensor, err_msg=f"{variant} preprocess")
     assert_allclose(
-        np.asarray(expected_shape, dtype=np.float32),
+        np.asarray(result.shape, dtype=np.float32),
         expected_shape,
         err_msg=f"{variant} shape",
     )

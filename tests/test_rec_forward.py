@@ -4,12 +4,11 @@ from __future__ import annotations
 
 import numpy as np
 import pytest
-from huggingface_hub import hf_hub_download
 
 from mlx_ocr.hub.download import download_model
 from mlx_ocr.hub.registry import ModelVariant
-from mlx_ocr.models.rec import RecognitionModel, load_recognition_model
-from mlx_ocr.preprocess.rec import rec_preprocess_crop_from_image
+from mlx_ocr.models.rec import RecognitionModel
+from mlx_ocr.preprocess.rec import rec_preprocess
 from tests.conftest import GOLDEN_ROOT, load_golden_npy
 from tests.reference.compare import assert_allclose
 
@@ -20,8 +19,10 @@ def test_rec_forward_matches_golden(
     variant: str,
 ) -> None:
     """Loaded recognition models reproduce committed golden softmax outputs."""
-    model = load_recognition_model(download_model(variant, "rec"))
-    preprocessed = rec_preprocess_crop_from_image(sample_bgr_image)
+    model = RecognitionModel.from_artifacts(download_model(variant, "rec"))
+    crop = sample_bgr_image[130:190, 40:280].copy()
+    height, width = crop.shape[:2]
+    preprocessed = rec_preprocess(crop, max_wh_ratio=width / float(height))
     softmax = model(preprocessed.image)
     actual = np.asarray(softmax, dtype=np.float32)
     expected = load_golden_npy(GOLDEN_ROOT / variant / "rec" / "softmax.npy")
@@ -32,7 +33,9 @@ def test_recognition_model_from_artifacts(sample_bgr_image: np.ndarray) -> None:
     """``RecognitionModel.from_artifacts`` loads tiny weights from the Hub."""
     artifacts = download_model("tiny", "rec")
     model = RecognitionModel.from_artifacts(artifacts)
-    preprocessed = rec_preprocess_crop_from_image(sample_bgr_image)
+    crop = sample_bgr_image[130:190, 40:280].copy()
+    height, width = crop.shape[:2]
+    preprocessed = rec_preprocess(crop, max_wh_ratio=width / float(height))
     output = model(preprocessed.image)
     assert output.shape[0] == 1
     assert output.shape[-1] == 6906
@@ -41,9 +44,5 @@ def test_recognition_model_from_artifacts(sample_bgr_image: np.ndarray) -> None:
 @pytest.mark.parametrize("variant", ("tiny", "small", "medium"))
 def test_rec_weight_load_strict(variant: ModelVariant) -> None:
     """Strict weight loading succeeds for every recognition variant."""
-    hf_hub_download(
-        f"PaddlePaddle/PP-OCRv6_{variant}_rec_safetensors",
-        "model.safetensors",
-    )
-    model = load_recognition_model(download_model(variant, "rec"))
+    model = RecognitionModel.from_artifacts(download_model(variant, "rec"))
     assert isinstance(model, RecognitionModel)

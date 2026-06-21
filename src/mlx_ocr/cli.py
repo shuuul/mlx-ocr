@@ -16,7 +16,7 @@ from PIL import Image
 
 from mlx_ocr.hub.rec_weight_patch import RecognitionWeightSource
 from mlx_ocr.hub.registry import ModelVariant
-from mlx_ocr.output import to_system_results_line
+from mlx_ocr.output import print_result, save_to_json, to_markdown, to_system_results_line
 from mlx_ocr.pipeline import PP_OCRv6
 
 logger = logging.getLogger(__name__)
@@ -114,18 +114,6 @@ def collect_input_documents(paths: tuple[Path, ...]) -> tuple[InputDocument, ...
         InputDocument(path=path, stem=path.stem, is_pdf=path.suffix.lower() == PDF_SUFFIX)
         for path in document_paths
     )
-
-
-def expand_image_paths(paths: tuple[Path, ...]) -> tuple[Path, ...]:
-    """Expand input files and directories to supported image/PDF files.
-
-    Args:
-        paths: User-provided ``--path`` values.
-
-    Returns:
-        Tuple of supported input file paths.
-    """
-    return tuple(document.path for document in collect_input_documents(paths))
 
 
 def iter_rendered_pages(
@@ -271,7 +259,7 @@ def run_ocr(
 
                 if "text" in formats:
                     typer.echo(f"# {rendered.output_name}")
-                    result.print()
+                    print_result(result)
                     typer.echo(
                         "timing: "
                         f"det={timing.det_s:.3f}s rec={timing.rec_s:.3f}s "
@@ -282,15 +270,14 @@ def run_ocr(
                     system_lines.append(to_system_results_line(result, rendered.output_name))
                 if "json" in formats:
                     json_path = parse_dir / f"{rendered.output_name}_res.json"
-                    result.save_to_json(
+                    save_to_json(
+                        result,
                         json_path,
                         input_path=rendered.input_path,
                         page_index=rendered.page_index,
                     )
                 if "markdown" in formats:
-                    markdown_pages.append(
-                        result.to_markdown(input_path=rendered.input_path).strip()
-                    )
+                    markdown_pages.append(to_markdown(result).strip())
 
             if "markdown" in formats:
                 markdown_path = parse_dir / f"{document.stem}.md"

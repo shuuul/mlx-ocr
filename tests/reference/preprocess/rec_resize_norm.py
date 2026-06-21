@@ -44,10 +44,7 @@ def resize_norm_img(
     imgW = int(imgH * max_wh_ratio)
     h, w = img.shape[:2]
     ratio = w / float(h)
-    if math.ceil(imgH * ratio) > imgW:
-        resized_w = imgW
-    else:
-        resized_w = int(math.ceil(imgH * ratio))
+    resized_w = min(math.ceil(imgH * ratio), imgW)
 
     resized_image = cv2.resize(img, (resized_w, imgH))
     resized_image = resized_image.astype("float32")

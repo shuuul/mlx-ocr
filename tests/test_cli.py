@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 import typer
 
-from mlx_ocr.cli import collect_input_documents, expand_image_paths, resolve_formats
+from mlx_ocr.cli import collect_input_documents, resolve_formats
 
 
 def test_resolve_formats_defaults_to_all_outputs() -> None:
@@ -22,7 +22,7 @@ def test_resolve_formats_preserves_requested_order_without_duplicates() -> None:
     assert resolve_formats(["markdown", "json", "markdown"], quiet=False) == ("markdown", "json")
 
 
-def test_expand_image_paths_accepts_files_and_directories(tmp_path: Path) -> None:
+def test_collect_input_documents_accepts_files_and_directories(tmp_path: Path) -> None:
     image_a = tmp_path / "a.jpg"
     image_b = tmp_path / "b.png"
     pdf = tmp_path / "doc.pdf"
@@ -32,7 +32,8 @@ def test_expand_image_paths_accepts_files_and_directories(tmp_path: Path) -> Non
     pdf.write_bytes(b"")
     text_file.write_text("skip", encoding="utf-8")
 
-    assert expand_image_paths((image_a, tmp_path)) == (image_a, image_a, image_b, pdf)
+    documents = collect_input_documents((image_a, tmp_path))
+    assert tuple(document.path for document in documents) == (image_a, image_a, image_b, pdf)
 
 
 def test_collect_input_documents_marks_pdf_inputs(tmp_path: Path) -> None:
@@ -47,6 +48,6 @@ def test_collect_input_documents_marks_pdf_inputs(tmp_path: Path) -> None:
     assert [document.is_pdf for document in documents] == [False, True]
 
 
-def test_expand_image_paths_rejects_missing_input() -> None:
+def test_collect_input_documents_rejects_missing_input() -> None:
     with pytest.raises(typer.BadParameter, match="missing input path"):
-        expand_image_paths((Path("missing.jpg"),))
+        collect_input_documents((Path("missing.jpg"),))

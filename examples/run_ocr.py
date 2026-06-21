@@ -14,7 +14,7 @@ import numpy as np
 from mlx_ocr import PP_OCRv6
 from mlx_ocr.hub.rec_weight_patch import RecognitionWeightSource
 from mlx_ocr.hub.registry import ModelVariant
-from mlx_ocr.output import to_system_results_line
+from mlx_ocr.output import print_result, save_to_json, save_to_markdown, to_system_results_line
 
 EXAMPLES_ROOT = Path(__file__).resolve().parent
 DEFAULT_IMAGES = (
@@ -91,14 +91,14 @@ def main() -> int:
         basename = image_path.name
 
         print(f"=== {basename} ({variant}) ===")
-        result.print()
+        print_result(result)
         print(
             f"timing: det={timing.det_s:.3f}s rec={timing.rec_s:.3f}s total={timing.total_s:.3f}s"
         )
 
         system_lines.append(to_system_results_line(result, basename))
-        result.save_to_json(args.output, input_path=str(image_path.resolve()))
-        result.save_to_markdown(args.output, input_path=str(image_path.resolve()))
+        save_to_json(result, args.output, input_path=str(image_path.resolve()))
+        save_to_markdown(result, args.output, input_path=str(image_path.resolve()))
 
     (args.output / "system_results.txt").write_text("".join(system_lines), encoding="utf-8")
     print(f"Wrote results under {args.output}")
