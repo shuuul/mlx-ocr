@@ -211,12 +211,7 @@ def load_recognition_weights(module: nn.Module, tensors: Mapping[str, mx.array])
 
     missing = tuple(sorted(set(expected) - set(aligned)))
     consumed = {source for source, target in mapper.mapping.items() if target in aligned}
-    unexpected = tuple(
-        sorted(
-            set(remaining)
-            - consumed
-        )
-    )
+    unexpected = tuple(sorted(set(remaining) - consumed))
     if missing or unexpected:
         raise ValueError(
             "strict recognition weight load failed: "

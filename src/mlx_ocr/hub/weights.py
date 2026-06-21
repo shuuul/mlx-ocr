@@ -84,8 +84,7 @@ class WeightMapper:
             match = _match_transformed_key(rewritten, targets)
             if match is None:
                 raise ValueError(
-                    f"expected exactly one target for {source_key!r} -> {rewritten!r}, "
-                    "found 0"
+                    f"expected exactly one target for {source_key!r} -> {rewritten!r}, found 0"
                 )
             mapping[source_key] = match
 
@@ -256,9 +255,7 @@ def load_into_module(
         try:
             aligned[key] = align_tensor_to_parameter(value, target_shape)
         except ValueError:
-            shape_errors.append(
-                f"{key}: expected shape {target_shape}, got {value.shape}"
-            )
+            shape_errors.append(f"{key}: expected shape {target_shape}, got {value.shape}")
 
     if shape_errors:
         detail = "\n".join(shape_errors)
@@ -268,8 +265,7 @@ def load_into_module(
 
     if strict and (missing or unexpected):
         raise ValueError(
-            "strict weight load failed: "
-            f"missing={missing or ()}, unexpected={unexpected or ()}"
+            f"strict weight load failed: missing={missing or ()}, unexpected={unexpected or ()}"
         )
 
     module.load_weights(list(mapped.items()), strict=strict)

@@ -191,9 +191,7 @@ def test_load_hub_subset_into_rep_dw_conv() -> None:
         hf_hub_download("PaddlePaddle/PP-OCRv6_medium_det_safetensors", "model.safetensors")
     )
     tensors = load_safetensors(path)
-    source_weight = tensors[
-        "model.backbone.encoder.blocks.0.blocks.0.token_conv.weight"
-    ]
+    source_weight = tensors["model.backbone.encoder.blocks.0.blocks.0.token_conv.weight"]
     channels = int(source_weight.shape[0])
     layer = RepDWConv(channels, kernel_size=3)
     mapper = WeightMapper.from_pairs(

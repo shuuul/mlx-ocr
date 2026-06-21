@@ -1,0 +1,48 @@
+line-length = 100
+target-version = "py312"
+
+exclude = [
+    ".bzr",
+    ".direnv",
+    ".eggs",
+    ".git",
+    ".git-rewrite",
+    ".hg",
+    ".mypy_cache",
+    ".nox",
+    ".pants.d",
+    ".pyenv",
+    ".pytest_cache",
+    ".pytype",
+    ".ruff_cache",
+    ".svn",
+    ".tox",
+    ".venv",
+    ".venv-mineru",
+    ".venv-paddle",
+    ".vscode",
+    "__pypackages__",
+    "_build",
+    "build",
+    "dist",
+    "node_modules",
+    "ocr-output",
+    "site-packages",
+    "venv",
+]
+
+[lint]
+select = ["E", "F", "I", "UP"]
+ignore = [
+    "E501", # Line too long (handled by formatter)
+]
+
+[format]
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false
+line-ending = "auto"
+
+[lint.isort]
+combine-as-imports = true
+split-on-trailing-comma = true

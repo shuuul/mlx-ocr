@@ -58,9 +58,7 @@ def _parse_block_configs(raw: object) -> tuple[tuple[BlockSpec, ...], ...]:
                 parsed_stride = (int(stride[0]), int(stride[1]))
             else:
                 parsed_stride = int(stride)
-            specs.append(
-                (int(kernel), int(in_ch), int(out_ch), parsed_stride, bool(use_se))
-            )
+            specs.append((int(kernel), int(in_ch), int(out_ch), parsed_stride, bool(use_se)))
         stages.append(tuple(specs))
     return tuple(stages)
 

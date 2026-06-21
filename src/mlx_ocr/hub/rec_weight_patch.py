@@ -90,9 +90,7 @@ def patch_recognition_hub_tensors(
         )
         for paddle_suffix, hub_suffix in _BN_SUFFIX_MAP:
             paddle_key = f"{paddle_prefix}.norm.{paddle_suffix}"
-            patched[f"{hub_prefix}.normalization.{hub_suffix}"] = mx.array(
-                pretrained[paddle_key]
-            )
+            patched[f"{hub_prefix}.normalization.{hub_suffix}"] = mx.array(pretrained[paddle_key])
 
     logger.info(
         "Patched %d head encoder tensors for %s recognition weights from Paddle pretrained",

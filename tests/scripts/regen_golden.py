@@ -234,8 +234,11 @@ def regen_variant(
     save_npy(rec_golden / "preprocessed.npy", rec_input)
     save_npy(rec_golden / "softmax.npy", rec_out)
 
-    dict_path = TESTS_ROOT / "data" / "dict" / (
-        "ppocrv6_tiny_dict.txt" if variant == "tiny" else "ppocrv6_dict.txt"
+    dict_path = (
+        TESTS_ROOT
+        / "data"
+        / "dict"
+        / ("ppocrv6_tiny_dict.txt" if variant == "tiny" else "ppocrv6_dict.txt")
     )
     decoder = CTCLabelDecode(character_dict_path=dict_path, use_space_char=True)
     rec_text = decoder(rec_out)

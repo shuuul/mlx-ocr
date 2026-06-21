@@ -4,8 +4,6 @@ MLX-based [PP-OCRv6](https://huggingface.co/collections/PaddlePaddle/pp-ocrv6) i
 
 This project reimplements PaddleOCRv6 with [MLX](https://github.com/ml-explore/mlx) and loads official Hugging Face `safetensors` weights for local detection and recognition on macOS.
 
-Reference implementation: [`../PaddleOCR`](../PaddleOCR).
-
 ## Setup
 
 ```bash
@@ -116,4 +114,4 @@ Paddle runtime required). Use `rec_weight_source="hub"` to load raw safetensors.
 
 ## License
 
-Apache-2.0
+MIT

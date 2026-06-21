@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import numpy as np
 import pytest
-from huggingface_hub import hf_hub_download
 
 from mlx_ocr.hub.download import download_model
 from mlx_ocr.hub.registry import ModelVariant
@@ -41,9 +40,5 @@ def test_detection_model_from_artifacts(sample_bgr_image: np.ndarray) -> None:
 @pytest.mark.parametrize("variant", ("tiny", "small", "medium"))
 def test_det_weight_load_strict(variant: ModelVariant) -> None:
     """Strict weight loading succeeds for every detection variant."""
-    path = hf_hub_download(
-        f"PaddlePaddle/PP-OCRv6_{variant}_det_safetensors",
-        "model.safetensors",
-    )
     model = load_detection_model(download_model(variant, "det"))
     assert isinstance(model, DetectionModel)

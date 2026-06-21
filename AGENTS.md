@@ -4,16 +4,6 @@
 
 Rewrite [PP-OCRv6](https://huggingface.co/collections/PaddlePaddle/pp-ocrv6) for Apple Silicon inference using [MLX](https://github.com/ml-explore/mlx). Load official Hugging Face weights and run text detection + recognition locally on macOS.
 
-## Reference Code
-
-The canonical PaddleOCR implementation lives at `../PaddleOCR`. Use it as the source of truth for:
-
-- Model architecture (`ppocr/` modules, configs under `configs/det/PP-OCRv6/` and `configs/rec/PP-OCRv6/`)
-- Pre/post-processing (`tools/infer/`, `ppocr/postprocess/`)
-- Inference behavior (`tools/infer/predict_det.py`, `tools/infer/predict_rec.py`, `tools/infer/predict_system.py`)
-
-Do not copy PaddlePaddle runtime dependencies into this repo. Reimplement the computation graph in MLX and load weights from the Hub `*_safetensors` repos.
-
 ## MLX Documentation
 
 Use the **DeepWiki MCP** to look up [MLX](https://github.com/ml-explore/mlx) APIs and behavior instead of guessing from source or stale training data. Target repository: `ml-explore/mlx`.

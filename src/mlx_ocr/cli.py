@@ -215,11 +215,15 @@ def resolve_formats(values: list[str] | None, *, quiet: bool) -> tuple[OutputFor
     Returns:
         Ordered unique output formats.
     """
-    default: tuple[OutputFormat, ...] = ("system", "json", "markdown") if quiet else (
-        "text",
-        "system",
-        "json",
-        "markdown",
+    default: tuple[OutputFormat, ...] = (
+        ("system", "json", "markdown")
+        if quiet
+        else (
+            "text",
+            "system",
+            "json",
+            "markdown",
+        )
     )
     raw_values = list(default if values is None else cast(list[OutputFormat], values))
     formats: list[OutputFormat] = []
@@ -284,7 +288,9 @@ def run_ocr(
                         page_index=rendered.page_index,
                     )
                 if "markdown" in formats:
-                    markdown_pages.append(result.to_markdown(input_path=rendered.input_path).strip())
+                    markdown_pages.append(
+                        result.to_markdown(input_path=rendered.input_path).strip()
+                    )
 
             if "markdown" in formats:
                 markdown_path = parse_dir / f"{document.stem}.md"

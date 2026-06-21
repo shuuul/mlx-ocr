@@ -14,9 +14,7 @@ from tests.reference.postprocess.ctc_decode import CTCLabelDecode
 def test_ctc_decode_matches_reference_on_golden_softmax(variant: str) -> None:
     """MLX CTC decode matches vendored reference on golden softmax outputs."""
     softmax = load_golden_npy(GOLDEN_ROOT / variant / "rec" / "softmax.npy")
-    dict_path = DICT_ROOT / (
-        "ppocrv6_tiny_dict.txt" if variant == "tiny" else "ppocrv6_dict.txt"
-    )
+    dict_path = DICT_ROOT / ("ppocrv6_tiny_dict.txt" if variant == "tiny" else "ppocrv6_dict.txt")
     reference = CTCLabelDecode(character_dict_path=dict_path, use_space_char=True)(softmax)
     decoded = ctc_decode_from_dict_path(
         softmax,

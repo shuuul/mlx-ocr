@@ -7,12 +7,12 @@ authors = [
     { name = "shuuul", email = "zetarylee@gmail.com" }
 ]
 requires-python = ">=3.12"
-license = { text = "Apache-2.0" }
+license = { text = "MIT" }
 keywords = ["ocr", "mlx", "paddleocr", "pp-ocrv6", "apple-silicon"]
 classifiers = [
     "Development Status :: 2 - Pre-Alpha",
     "Intended Audience :: Developers",
-    "License :: OSI Approved :: Apache Software License",
+    "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
     "Topic :: Scientific/Engineering :: Image Recognition",
@@ -39,6 +39,7 @@ mlx-ocr-mcp = "mlx_ocr.mcp:main"
 
 [dependency-groups]
 dev = [
+    "prek>=0.4.3",
     "pytest>=8.0",
     "ruff>=0.9",
     "opencv-python-headless>=4.8",
@@ -53,10 +54,3 @@ build-backend = "uv_build"
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["src", "."]
-
-[tool.ruff]
-line-length = 100
-target-version = "py312"
-
-[tool.ruff.lint]
-select = ["E", "F", "I", "UP"]

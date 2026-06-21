@@ -93,9 +93,7 @@ class DBPostProcess:
                 continue
 
             box_arr[:, 0] = np.clip(np.round(box_arr[:, 0] / width * dest_width), 0, dest_width)
-            box_arr[:, 1] = np.clip(
-                np.round(box_arr[:, 1] / height * dest_height), 0, dest_height
-            )
+            box_arr[:, 1] = np.clip(np.round(box_arr[:, 1] / height * dest_height), 0, dest_height)
             boxes.append(box_arr.tolist())
             scores.append(score)
         return boxes, scores
@@ -147,9 +145,7 @@ class DBPostProcess:
             box_arr = np.array(box_arr)
 
             box_arr[:, 0] = np.clip(np.round(box_arr[:, 0] / width * dest_width), 0, dest_width)
-            box_arr[:, 1] = np.clip(
-                np.round(box_arr[:, 1] / height * dest_height), 0, dest_height
-            )
+            box_arr[:, 1] = np.clip(np.round(box_arr[:, 1] / height * dest_height), 0, dest_height)
             boxes.append(box_arr.astype("int32"))
             scores.append(score)
         return np.array(boxes, dtype="int32"), scores
@@ -231,13 +227,9 @@ class DBPostProcess:
             else:
                 mask = segmentation[batch_index]
             if self.box_type == "poly":
-                boxes, _scores = self.polygons_from_bitmap(
-                    pred[batch_index], mask, src_w, src_h
-                )
+                boxes, _scores = self.polygons_from_bitmap(pred[batch_index], mask, src_w, src_h)
             elif self.box_type == "quad":
-                boxes, _scores = self.boxes_from_bitmap(
-                    pred[batch_index], mask, src_w, src_h
-                )
+                boxes, _scores = self.boxes_from_bitmap(pred[batch_index], mask, src_w, src_h)
             else:
                 raise ValueError("box_type can only be one of ['quad', 'poly']")
 

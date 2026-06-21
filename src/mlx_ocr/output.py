@@ -207,12 +207,14 @@ def save_to_json(
         save_path.parent.mkdir(parents=True, exist_ok=True)
         json_path = save_path
 
-    payload = {"res": to_paddlex_res(
-        result,
-        input_path=input_path,
-        page_index=page_index,
-        text_rec_score_thresh=text_rec_score_thresh,
-    )}
+    payload = {
+        "res": to_paddlex_res(
+            result,
+            input_path=input_path,
+            page_index=page_index,
+            text_rec_score_thresh=text_rec_score_thresh,
+        )
+    }
     json_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
     logger.info("Wrote %s", json_path)
     return json_path
