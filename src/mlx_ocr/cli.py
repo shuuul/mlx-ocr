@@ -6,6 +6,7 @@ import json
 import logging
 import shutil
 import sys
+import tempfile
 from collections.abc import Iterator
 from dataclasses import dataclass
 from pathlib import Path
@@ -20,10 +21,16 @@ from mlx_ocr.hub.registry import ModelVariant
 from mlx_ocr.output import to_markdown, to_paddlex_res
 from mlx_ocr.pipeline import PP_OCRv6
 from mlx_ocr.types import OCRResult
+from mlx_ocr.vlm import VLMOCR, VLMEngineName, VLMOCRTask
 
 logger = logging.getLogger(__name__)
 
 OutputFormat = Literal["txt", "json", "markdown"]
+EngineName = Literal["ppocrv6", "glm-ocr", "paddleocr-vl"]
+VLM_DEFAULT_MODEL_IDS: dict[VLMEngineName, str] = {
+    "glm-ocr": "mlx-community/GLM-OCR-bf16",
+    "paddleocr-vl": "PaddlePaddle/PaddleOCR-VL",
+}
 IMAGE_SUFFIXES = frozenset({".bmp", ".jpeg", ".jpg", ".png", ".tif", ".tiff", ".webp"})
 PDF_SUFFIX = ".pdf"
 SUPPORTED_SUFFIXES = IMAGE_SUFFIXES | frozenset({PDF_SUFFIX})
@@ -60,6 +67,17 @@ class PageOCRResult:
 
     rendered: RenderedPage
     result: OCRResult
+
+
+@dataclass(frozen=True)
+class VLMOptions:
+    """Validated VLM OCR CLI options."""
+
+    engine: VLMEngineName
+    model: str
+    task: VLMOCRTask
+    prompt: str | None
+    max_tokens: int
 
 
 def read_bgr_image(path: Path) -> np.ndarray:
@@ -155,6 +173,18 @@ def iter_rendered_pages(
     )
 
 
+def vlm_image_page(document: InputDocument, *, start: int | None, end: int | None) -> RenderedPage:
+    """Create VLM page metadata for an image without decoding it."""
+    if start is not None or end is not None:
+        raise typer.BadParameter("--start/--end can only be used with PDF inputs")
+    return RenderedPage(
+        image=np.empty((0, 0, 3), dtype=np.uint8),
+        input_path=str(document.path.resolve()),
+        output_name=document.path.name,
+        page_index=None,
+    )
+
+
 def render_pdf_pages(path: Path, *, start: int | None, end: int | None) -> Iterator[RenderedPage]:
     """Render PDF pages to BGR arrays.
 
@@ -221,6 +251,44 @@ def resolve_format(value: str) -> OutputFormat:
     return cast(OutputFormat, value)
 
 
+def resolve_engine(value: str) -> EngineName:
+    """Validate the requested OCR engine."""
+    valid_engines = {"ppocrv6", "glm-ocr", "paddleocr-vl"}
+    if value not in valid_engines:
+        raise typer.BadParameter(f"engine must be one of: {', '.join(sorted(valid_engines))}")
+    return cast(EngineName, value)
+
+
+def resolve_vlm_options(
+    engine: VLMEngineName,
+    model: str | None,
+    task: str,
+    prompt: str | None,
+    max_tokens: int,
+) -> VLMOptions:
+    """Validate VLM OCR options at the CLI boundary."""
+    resolved_model = VLM_DEFAULT_MODEL_IDS[engine] if model is None else model.strip()
+    if not resolved_model:
+        raise typer.BadParameter("vlm_model must be a non-empty string")
+
+    valid_tasks = {"text", "formula", "table", "schema"}
+    if engine == "paddleocr-vl":
+        valid_tasks = valid_tasks | {"chart"}
+    if task not in valid_tasks:
+        raise typer.BadParameter(f"vlm_task must be one of: {', '.join(sorted(valid_tasks))}")
+    if max_tokens < 1:
+        raise typer.BadParameter("max_tokens must be at least 1")
+    if task == "schema" and (prompt is None or not prompt.strip()):
+        raise typer.BadParameter("schema VLM OCR requires --prompt")
+    return VLMOptions(
+        engine=engine,
+        model=resolved_model,
+        task=cast(VLMOCRTask, task),
+        prompt=prompt,
+        max_tokens=max_tokens,
+    )
+
+
 def page_label(page: PageOCRResult) -> str:
     """Return a human-readable label for an OCR page."""
     if page.rendered.page_index is None:
@@ -230,9 +298,7 @@ def page_label(page: PageOCRResult) -> str:
 
 def to_txt(result: OCRResult) -> str:
     """Format OCR output as plain text."""
-    if not result.recognitions:
-        return ""
-    return "\n".join(recognition.text for recognition in result.recognitions) + "\n"
+    return to_markdown(result)
 
 
 def format_txt_document(pages: tuple[PageOCRResult, ...]) -> str:
@@ -263,20 +329,47 @@ def format_json_document(document: InputDocument, pages: tuple[PageOCRResult, ..
     """Format one input document as JSON, preserving page metadata."""
     payload: dict[str, object] = {
         "input_path": str(document.path.resolve()),
-        "pages": [
-            {
-                "name": page.rendered.output_name,
-                "page_index": page.rendered.page_index,
-                "res": to_paddlex_res(
-                    page.result,
-                    input_path=page.rendered.input_path,
-                    page_index=page.rendered.page_index,
-                ),
-            }
-            for page in pages
-        ],
+        "pages": [format_json_page(page) for page in pages],
     }
     return json.dumps(payload, ensure_ascii=False, indent=2) + "\n"
+
+
+def format_json_page(page: PageOCRResult) -> dict[str, object]:
+    """Format one page as PP-OCRv6 PaddleX JSON or generalized VLM JSON."""
+    payload: dict[str, object] = {
+        "name": page.rendered.output_name,
+        "page_index": page.rendered.page_index,
+    }
+    if page.result.engine != "ppocrv6":
+        payload["result"] = {
+            "engine": page.result.engine,
+            "model": page.result.model,
+            "prompt": page.result.prompt,
+            "text": page.result.text,
+            "blocks": [
+                {
+                    "text": block.text,
+                    "box": None if block.box is None else block.box.points,
+                    "detection_score": block.detection_score,
+                    "recognition_score": block.recognition_score,
+                }
+                for block in page.result.blocks
+            ],
+        }
+        return payload
+
+    payload["res"] = to_paddlex_res(
+        page.result,
+        input_path=page.rendered.input_path,
+        page_index=page.rendered.page_index,
+    )
+    return payload
+
+
+def write_rendered_page_png(rendered: RenderedPage, path: Path) -> None:
+    """Write a rendered BGR page as an RGB PNG for VLM OCR."""
+    rgb = rendered.image[:, :, ::-1]
+    Image.fromarray(rgb, mode="RGB").save(path)
 
 
 def format_document_output(
@@ -306,10 +399,12 @@ def run_ocr(
     documents: tuple[InputDocument, ...],
     output_dir: Path | None,
     output_format: OutputFormat,
+    engine: EngineName,
     variant: ModelVariant,
     drop_score: float,
     rec_weight_source: RecognitionWeightSource,
     compile_models: bool,
+    vlm_options: VLMOptions | None,
     quiet: bool,
     start: int | None,
     end: int | None,
@@ -318,12 +413,24 @@ def run_ocr(
     if output_dir is not None:
         output_dir.mkdir(parents=True, exist_ok=True)
 
-    ocr = PP_OCRv6.from_hub(
-        variant,
-        drop_score=drop_score,
-        rec_weight_source=rec_weight_source,
-        compile_models=compile_models,
-    )
+    ocr = None
+    vlm_ocr = None
+    if engine == "ppocrv6":
+        ocr = PP_OCRv6.from_hub(
+            variant,
+            drop_score=drop_score,
+            rec_weight_source=rec_weight_source,
+            compile_models=compile_models,
+        )
+    else:
+        if vlm_options is None:
+            raise RuntimeError("VLM OCR options are required for VLM OCR")
+        vlm_ocr = VLMOCR.from_hub(
+            vlm_options.model,
+            engine=vlm_options.engine,
+            task=vlm_options.task,
+            max_tokens=vlm_options.max_tokens,
+        )
 
     written_paths: list[Path] = []
     try:
@@ -336,9 +443,39 @@ def run_ocr(
                     shutil.copyfile(document.path, save_dir / f"{document.stem}_origin.pdf")
 
             pages: list[PageOCRResult] = []
-            for rendered in iter_rendered_pages(document, start=start, end=end):
-                pipeline_result = ocr.predict(rendered.image)
-                pages.append(PageOCRResult(rendered=rendered, result=pipeline_result.result))
+            if engine == "ppocrv6":
+                if ocr is None:
+                    raise RuntimeError("PP-OCRv6 engine was not initialized")
+                for rendered in iter_rendered_pages(document, start=start, end=end):
+                    pipeline_result = ocr.predict(rendered.image)
+                    pages.append(PageOCRResult(rendered=rendered, result=pipeline_result.result))
+            else:
+                if vlm_ocr is None:
+                    raise RuntimeError("VLM OCR engine was not initialized")
+                if vlm_options is None:
+                    raise RuntimeError("VLM OCR options are required for VLM OCR")
+                if document.is_pdf:
+                    with tempfile.TemporaryDirectory(prefix="mlx-ocr-vlm-") as temp_dir:
+                        temp_path = Path(temp_dir)
+                        for rendered in iter_rendered_pages(document, start=start, end=end):
+                            page_path = temp_path / f"{rendered.output_name}.png"
+                            write_rendered_page_png(rendered, page_path)
+                            result = vlm_ocr.predict_path(
+                                page_path,
+                                task=vlm_options.task,
+                                prompt=vlm_options.prompt,
+                                max_tokens=vlm_options.max_tokens,
+                            )
+                            pages.append(PageOCRResult(rendered=rendered, result=result))
+                else:
+                    rendered = vlm_image_page(document, start=start, end=end)
+                    result = vlm_ocr.predict_path(
+                        document.path,
+                        task=vlm_options.task,
+                        prompt=vlm_options.prompt,
+                        max_tokens=vlm_options.max_tokens,
+                    )
+                    pages.append(PageOCRResult(rendered=rendered, result=result))
 
             rendered_output = format_document_output(document, tuple(pages), output_format)
             if save_dir is None:
@@ -350,7 +487,10 @@ def run_ocr(
             written_paths.append(output_path)
             logger.info("Wrote %s", output_path)
     finally:
-        ocr.close()
+        if ocr is not None:
+            ocr.close()
+        if vlm_ocr is not None:
+            vlm_ocr.close()
 
     if written_paths and not quiet:
         typer.echo(f"Wrote {len(written_paths)} output file(s) under {output_dir}")
@@ -378,6 +518,10 @@ def ocr(
         str,
         typer.Option("--format", "-f", help="Output format: txt, markdown, or json."),
     ] = "markdown",
+    engine: Annotated[
+        str,
+        typer.Option("--engine", help="OCR engine: ppocrv6, glm-ocr, or paddleocr-vl."),
+    ] = "ppocrv6",
     variant: Annotated[
         str,
         typer.Option(
@@ -411,6 +555,22 @@ def ocr(
         bool,
         typer.Option("--no-compile", help="Disable MLX compiled model functions."),
     ] = False,
+    vlm_model: Annotated[
+        str | None,
+        typer.Option("--vlm-model", help="Hugging Face model ID for VLM engines."),
+    ] = None,
+    vlm_task: Annotated[
+        str,
+        typer.Option("--vlm-task", help="VLM OCR task: text, formula, table, schema, or PaddleOCR-VL chart."),
+    ] = "text",
+    prompt: Annotated[
+        str | None,
+        typer.Option("--prompt", help="Optional VLM OCR prompt. Required for --vlm-task schema."),
+    ] = None,
+    max_tokens: Annotated[
+        int,
+        typer.Option("--max-tokens", help="Maximum VLM OCR generated tokens."),
+    ] = 512,
     quiet: Annotated[
         bool,
         typer.Option("--quiet", help="Suppress logging and saved-file summaries."),
@@ -429,14 +589,27 @@ def ocr(
             f"rec_weight_source must be one of: {', '.join(sorted(valid_weight_sources))}"
         )
 
+    resolved_engine = resolve_engine(engine)
+    vlm_options = None
+    if resolved_engine != "ppocrv6":
+        vlm_options = resolve_vlm_options(
+            cast(VLMEngineName, resolved_engine),
+            vlm_model,
+            vlm_task,
+            prompt,
+            max_tokens,
+        )
+
     run_ocr(
         documents=collect_input_documents(tuple(path or ())),
         output_dir=output,
         output_format=resolve_format(output_format),
+        engine=resolved_engine,
         variant=cast(ModelVariant, variant),
         drop_score=drop_score,
         rec_weight_source=cast(RecognitionWeightSource, rec_weight_source),
         compile_models=not no_compile,
+        vlm_options=vlm_options,
         quiet=quiet,
         start=start,
         end=end,

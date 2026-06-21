@@ -37,6 +37,9 @@ Issues = "https://github.com/shuuul/mlx-ocr/issues"
 mcp = [
     "mcp>=1.23.0",
 ]
+vlm = [
+    "mlx-vlm>=0.6.3",
+]
 
 [project.scripts]
 mlx-ocr = "mlx_ocr.cli:main"

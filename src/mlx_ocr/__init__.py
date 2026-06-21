@@ -12,10 +12,12 @@ from mlx_ocr.hub import (
 )
 from mlx_ocr.output import OCRTiming
 from mlx_ocr.pipeline import MemoryPolicy, PipelineResult, PP_OCRv6
-from mlx_ocr.types import BoundingBox, OCRResult, TextDetection, TextRecognition
+from mlx_ocr.types import BoundingBox, OCRResult, OCRTextBlock
+from mlx_ocr.vlm import VLMOCR
 
 __all__ = [
     "PP_OCRV6_COLLECTION_URL",
+    "VLMOCR",
     "BoundingBox",
     "HubArtifacts",
     "HubModelRef",
@@ -23,11 +25,10 @@ __all__ = [
     "ModelTask",
     "ModelVariant",
     "OCRResult",
+    "OCRTextBlock",
     "OCRTiming",
     "PP_OCRv6",
     "PipelineResult",
-    "TextDetection",
-    "TextRecognition",
     "download_model",
     "hub_model_ref",
     "list_hub_models",

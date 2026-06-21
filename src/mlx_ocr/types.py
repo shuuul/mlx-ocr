@@ -57,8 +57,55 @@ class TextRecognition:
 
 
 @dataclass(frozen=True)
+class OCRTextBlock:
+    """Recognized text block in an OCR result."""
+
+    text: str
+    box: BoundingBox | None = None
+    detection_score: float | None = None
+    recognition_score: float | None = None
+
+
+@dataclass(frozen=True)
 class OCRResult:
     """End-to-end OCR output for one image."""
 
-    detections: tuple[TextDetection, ...]
-    recognitions: tuple[TextRecognition, ...]
+    blocks: tuple[OCRTextBlock, ...]
+    text: str
+    engine: str
+    model: str | None = None
+    prompt: str | None = None
+
+    @classmethod
+    def from_ppocrv6(
+        cls,
+        detections: tuple[TextDetection, ...],
+        recognitions: tuple[TextRecognition, ...],
+        *,
+        model: str | None = None,
+    ) -> OCRResult:
+        """Build a PP-OCRv6 result from aligned detection and recognition tuples.
+
+        Args:
+            detections: Filtered text detections in reading order.
+            recognitions: Filtered text recognitions aligned with ``detections``.
+            model: Optional model variant or identifier.
+
+        Returns:
+            Generalized block-based OCR result.
+        """
+        blocks = tuple(
+            OCRTextBlock(
+                text=recognition.text,
+                box=detection.box,
+                detection_score=detection.score,
+                recognition_score=recognition.score,
+            )
+            for detection, recognition in zip(detections, recognitions, strict=True)
+        )
+        return cls(
+            blocks=blocks,
+            text="\n".join(block.text for block in blocks),
+            engine="ppocrv6",
+            model=model,
+        )

@@ -32,7 +32,7 @@ def img_10_bgr() -> np.ndarray:
 def test_img_10_recognizes_english_lines(img_10_bgr: np.ndarray, variant: str) -> None:
     """PP-OCRv6 det demo image yields the three English notice lines."""
     result = PP_OCRv6.from_hub(variant).predict(img_10_bgr).result
-    texts = [recognition.text for recognition in result.recognitions]
+    texts = [block.text for block in result.blocks]
     assert len(texts) == 3
     assert "Please lower your volume" in texts[0]
     assert "when you" in texts[1] and "pass by" in texts[1]
@@ -46,8 +46,7 @@ def test_sample_doc_example_matches_golden_e2e(variant: str) -> None:
     if image is None:
         raise FileNotFoundError(f"missing example image: {SAMPLE_DOC}")
     result = PP_OCRv6.from_hub(variant, drop_score=0.0).predict(image).result
-    assert len(result.detections) == 4
-    assert len(result.recognitions) == 4
+    assert len(result.blocks) == 4
 
 
 def test_general_ocr_example_runs() -> None:
@@ -56,5 +55,5 @@ def test_general_ocr_example_runs() -> None:
     if image is None:
         raise FileNotFoundError(f"missing example image: {GENERAL_OCR}")
     pipeline_result = PP_OCRv6.from_hub("medium", drop_score=0.0).predict(image)
-    assert len(pipeline_result.result.detections) > 0
+    assert len(pipeline_result.result.blocks) > 0
     assert pipeline_result.timing.total_s > 0.0

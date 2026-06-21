@@ -72,7 +72,12 @@ def test_pipeline_e2e_matches_golden(
     det_boxes = golden["det_boxes"]
     assert isinstance(det_boxes, list)
     expected_boxes = _sort_golden_boxes(det_boxes)
-    ordered = sorted_detections(result.detections)
+    detections = tuple(
+        TextDetection(box=block.box, score=block.detection_score)
+        for block in result.blocks
+        if block.box is not None and block.detection_score is not None
+    )
+    ordered = sorted_detections(detections)
     _assert_boxes_match(ordered, expected_boxes, variant=variant)
 
     crop = sample_bgr_image[130:190, 40:280].copy()
@@ -92,8 +97,7 @@ def test_pp_ocrv6_from_hub_returns_pipeline(sample_bgr_image: np.ndarray) -> Non
     """``PP_OCRv6.from_hub`` constructs a callable pipeline."""
     pipeline = PP_OCRv6.from_hub("tiny")
     result = pipeline(sample_bgr_image)
-    assert len(result.detections) == len(result.recognitions)
-    assert len(result.detections) > 0
+    assert len(result.blocks) > 0
 
 
 def test_pp_ocrv6_from_hub_accepts_stage_variants(

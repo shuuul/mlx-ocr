@@ -26,21 +26,40 @@ def box_points_int32(box: BoundingBox) -> list[list[int]]:
     return [[round(x), round(y)] for x, y in box.points]
 
 
+def require_paddlex_block_fields(result: OCRResult) -> None:
+    """Validate that every block has PaddleX geometry and scores."""
+    paddlex_blocks(result)
+
+
+def paddlex_blocks(result: OCRResult) -> tuple[tuple[BoundingBox, str, float, float], ...]:
+    """Return PaddleX-ready block fields after validating required metadata."""
+    fields: list[tuple[BoundingBox, str, float, float]] = []
+    for index, block in enumerate(result.blocks):
+        if block.box is None:
+            raise ValueError(f"OCR block {index} is missing geometry required for PaddleX output")
+        if block.detection_score is None:
+            raise ValueError(f"OCR block {index} is missing detection score required for PaddleX output")
+        if block.recognition_score is None:
+            raise ValueError(f"OCR block {index} is missing recognition score required for PaddleX output")
+        fields.append((block.box, block.text, block.detection_score, block.recognition_score))
+    return tuple(fields)
+
+
 def to_system_results_entries(result: OCRResult) -> list[dict[str, object]]:
     """Build Paddle ``predict_system`` JSON entries.
 
     Args:
-        result: Filtered OCR output with aligned detections and recognitions.
+        result: Filtered OCR output with blocks containing geometry.
 
     Returns:
         List of ``{"transcription": str, "points": [[x,y], ...]}`` dicts.
     """
     entries: list[dict[str, object]] = []
-    for detection, recognition in zip(result.detections, result.recognitions, strict=True):
+    for box, text, _detection_score, _recognition_score in paddlex_blocks(result):
         entries.append(
             {
-                "transcription": recognition.text,
-                "points": box_points_int32(detection.box),
+                "transcription": text,
+                "points": box_points_int32(box),
             }
         )
     return entries
@@ -67,11 +86,11 @@ def to_markdown(result: OCRResult) -> str:
         result: OCR output for a single image.
 
     Returns:
-        Recognized text lines separated by newlines.
+        Recognized text with one trailing newline when non-empty.
     """
-    if not result.recognitions:
+    if not result.text:
         return ""
-    return "\n".join(recognition.text for recognition in result.recognitions) + "\n"
+    return result.text + "\n"
 
 
 def save_to_markdown(
@@ -116,7 +135,7 @@ def to_paddlex_res(
     """Build a PaddleOCR 3.x ``res`` dict from filtered OCR output.
 
     Args:
-        result: Filtered OCR output with aligned detections and recognitions.
+        result: Filtered OCR output with blocks containing geometry and scores.
         input_path: Optional source image path.
         page_index: Optional PDF page index.
         text_rec_score_thresh: Score threshold recorded in metadata.
@@ -124,18 +143,22 @@ def to_paddlex_res(
     Returns:
         Mapping compatible with PaddleX ``save_to_json`` core fields.
     """
-    rec_polys = [box_points_int32(detection.box) for detection in result.detections]
-    rec_texts = [recognition.text for recognition in result.recognitions]
-    rec_scores = [recognition.score for recognition in result.recognitions]
-    rec_boxes = [
-        [detection.box.x_min, detection.box.y_min, detection.box.x_max, detection.box.y_max]
-        for detection in result.detections
-    ]
+    rec_polys: list[list[list[int]]] = []
+    rec_texts: list[str] = []
+    rec_scores: list[float] = []
+    rec_boxes: list[list[float]] = []
+    dt_scores: list[float] = []
+    for box, text, detection_score, recognition_score in paddlex_blocks(result):
+        rec_polys.append(box_points_int32(box))
+        rec_texts.append(text)
+        rec_scores.append(recognition_score)
+        rec_boxes.append([box.x_min, box.y_min, box.x_max, box.y_max])
+        dt_scores.append(detection_score)
     return {
         "input_path": input_path,
         "page_index": page_index,
         "dt_polys": rec_polys,
-        "dt_scores": [detection.score for detection in result.detections],
+        "dt_scores": dt_scores,
         "rec_texts": rec_texts,
         "rec_scores": rec_scores,
         "rec_polys": rec_polys,
@@ -188,5 +211,5 @@ def save_to_json(
 
 def print_result(result: OCRResult) -> None:
     """Print OCR lines in Paddle ``predict_system`` debug style."""
-    for _, recognition in zip(result.detections, result.recognitions, strict=True):
-        print(f"{recognition.text}\t{recognition.score:.3f}")
+    for _box, text, _detection_score, recognition_score in paddlex_blocks(result):
+        print(f"{text}\t{recognition_score:.3f}")

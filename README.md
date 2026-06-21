@@ -6,12 +6,14 @@
 [![Apple Silicon](https://img.shields.io/badge/platform-Apple%20Silicon-lightgrey.svg)](https://support.apple.com/en-us/116943)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
-Apple Silicon OCR powered by [MLX](https://github.com/ml-explore/mlx) and
-[PP-OCRv6](https://huggingface.co/collections/PaddlePaddle/pp-ocrv6).
+Apple Silicon OCR powered by [MLX](https://github.com/ml-explore/mlx),
+[PP-OCRv6](https://huggingface.co/collections/PaddlePaddle/pp-ocrv6), and an
+optional VLM backend for GLM-OCR and PaddleOCR-VL.
 
 `mlx-ocr` reimplements PP-OCRv6 detection and recognition for local macOS
 inference. It downloads official Hugging Face `safetensors` weights on demand
-and runs the OCR pipeline without a PaddlePaddle runtime.
+and runs the OCR pipeline without a PaddlePaddle runtime. For generated-text OCR,
+it can also run GLM-OCR and PaddleOCR-VL through the optional `mlx-vlm` extra.
 
 > [!NOTE]
 > This project is pre-alpha. APIs and output details may change while the MLX
@@ -23,6 +25,7 @@ and runs the OCR pipeline without a PaddlePaddle runtime.
 - Official `tiny`, `small`, and `medium` Hugging Face model variants.
 - Image, PDF, and non-recursive directory inputs from the CLI.
 - Plain text, Markdown, and PaddleOCR-style JSON output.
+- Optional GLM-OCR and PaddleOCR-VL generated-text backends through `mlx-vlm`.
 - Optional saved output layout compatible with document OCR workflows.
 - Optional MCP server and installable agent skill for compatible coding agents.
 
@@ -32,6 +35,9 @@ and runs the OCR pipeline without a PaddlePaddle runtime.
 - Python 3.12 or newer.
 - [`uv`](https://docs.astral.sh/uv/) for local development and CLI execution.
 - Internet access on first run to download model weights from Hugging Face.
+- For optional VLM OCR, enough disk space for the selected VLM checkpoint. The
+  GLM-OCR `mlx-community/GLM-OCR-bf16` main `model.safetensors` file is about
+  2.2 GB; PaddleOCR-VL size is not yet benchmarked in this project.
 
 ## Installation
 
@@ -53,6 +59,12 @@ For development from a checkout:
 git clone https://github.com/shuuul/mlx-ocr.git
 cd mlx-ocr
 uv sync --group dev
+```
+
+Optional VLM OCR support through `mlx-vlm` is available as an extra:
+
+```bash
+uv sync --extra vlm
 ```
 
 ## Quick start
@@ -88,11 +100,50 @@ ocr = PP_OCRv6.from_hub("medium")
 
 try:
     result = ocr.predict(image)
-    result.result.print()
-    print(result.timing.as_dict())
+    print(result.result.text)
+    for block in result.result.blocks:
+        print(block.text, block.box, block.detection_score, block.recognition_score)
+    print(result.timing)
 finally:
     ocr.close()
 ```
+
+The Python `OCRResult` is block-based. `result.result.text` contains recognized
+lines joined with newlines, and `result.result.blocks` contains `OCRTextBlock`
+items with optional geometry and detection/recognition scores.
+
+Optional VLM OCR API, using GLM-OCR or PaddleOCR-VL through `mlx-vlm`:
+
+```python
+from mlx_ocr import VLMOCR
+
+# GLM-OCR is the default VLM preset.
+ocr = VLMOCR.from_hub()
+
+try:
+    result = ocr.predict_path("examples/images/img_10.jpg")
+    print(result.text)
+finally:
+    ocr.close()
+```
+
+Use PaddleOCR-VL by selecting the preset engine:
+
+```python
+from mlx_ocr import VLMOCR
+
+ocr = VLMOCR.from_hub(engine="paddleocr-vl", task="chart")
+
+try:
+    result = ocr.predict_path("chart.png")
+    print(result.text)
+finally:
+    ocr.close()
+```
+
+This API requires installing the `vlm` extra. It currently returns the generated
+text as one `OCRTextBlock` without geometry, detection scores, or recognition
+scores.
 
 ## CLI usage
 
@@ -107,7 +158,68 @@ Supported output formats:
 
 - `txt` — recognized text only.
 - `markdown` — recognized text as Markdown, preserving PDF page headings.
-- `json` — PaddleOCR-style `res` fields with PDF `page_index` metadata.
+- `json` — PaddleOCR/PaddleX-compatible PP-OCRv6 `res` fields with PDF
+  `page_index` metadata. This format requires OCR blocks with geometry and
+  detection/recognition scores.
+
+PP-OCRv6 is the default CLI engine. Optional VLM CLI inference is available
+through `mlx-vlm` after installing the `vlm` extra. Supported VLM presets are
+GLM-OCR and PaddleOCR-VL:
+
+```bash
+uv sync --extra vlm
+mlx-ocr --path input.png --engine glm-ocr --format markdown
+mlx-ocr --path input.pdf --engine glm-ocr --vlm-task table --max-tokens 1024
+mlx-ocr --path chart.png --engine paddleocr-vl --vlm-task chart --format markdown
+```
+
+Use `--vlm-model` to select a different compatible Hugging Face model. GLM-OCR
+tasks are `text`, `formula`, `table`, and `schema`. PaddleOCR-VL tasks are
+`text`, `formula`, `table`, `chart`, and `schema`. The `schema` task requires a
+custom `--prompt` for both VLM engines. JSON output for VLM engines uses a
+generalized `result` object with generated text and blocks, not the PaddleX
+`res` geometry fields.
+
+### Engine comparison and VLM resource notes
+
+`mlx-ocr` has three local MLX OCR engine presets:
+
+- `ppocrv6` — default detector/recognizer pipeline. It returns text blocks with
+  geometry and detection/recognition scores.
+- `glm-ocr` — optional VLM generated-text pipeline. It can produce more natural
+  page text, but it does not return text boxes or confidence scores.
+- `paddleocr-vl` — optional PaddleOCR-VL generated-text pipeline through
+  `mlx-vlm`, including chart recognition prompts. It also does not return text
+  boxes or confidence scores.
+
+VLM engines are much heavier than the default PP-OCRv6 path. On first use,
+`mlx-vlm` downloads the selected model. The GLM-OCR preset downloads
+`mlx-community/GLM-OCR-bf16`; the main safetensors file is about 2.2 GB.
+PaddleOCR-VL uses `PaddlePaddle/PaddleOCR-VL`; the local Hugging Face cache was
+about 1.8 GB in the smoke test below. If a download stalls through Hugging
+Face/Xet, retry with:
+
+```bash
+HF_HUB_DISABLE_XET=1 uv run --extra vlm mlx-ocr \
+  --path examples/ppocrv6.pdf --engine glm-ocr --format markdown --start 0 --end 0
+```
+
+Smoke-test timings on the development machine for `examples/ppocrv6.pdf`, with
+models already cached:
+
+| Engine | Input | Options | Wall time | Max RSS |
+|--------|-------|---------|-----------|---------|
+| `ppocrv6` | page 1 | `--start 0 --end 0` | ~8.6 s | ~1.17 GB |
+| `glm-ocr` | page 1 | `--start 0 --end 0 --max-tokens 128` | ~11 s | ~2.5 GB |
+| `paddleocr-vl` | page 1 | `--start 0 --end 0 --max-tokens 128` | ~13.4 s | ~2.49 GB |
+| `ppocrv6` | full 10-page PDF | default tokens N/A | ~1 min 21 s | ~1.30 GB |
+| `glm-ocr` | full 10-page PDF | `--max-tokens 256` | ~3 min 37 s | ~3.1 GB |
+| `paddleocr-vl` | full 10-page PDF | `--max-tokens 256` | ~5 min 21 s | ~2.48 GB |
+
+These numbers are indicative rather than a guarantee. Actual time and memory
+depend on the Mac, MLX version, image/PDF resolution, prompt, and `--max-tokens`.
+Increase `--max-tokens` for long VLM pages to reduce truncation; expect
+processing time to increase with the generated output length.
 
 PDF page ranges use 0-based inclusive page indexes:
 

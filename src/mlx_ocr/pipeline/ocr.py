@@ -291,7 +291,7 @@ class PP_OCRv6:
             total_s = time.perf_counter() - total_start
             self.memory.on_predict_end()
             return PipelineResult(
-                result=OCRResult(detections=(), recognitions=()),
+                result=OCRResult.from_ppocrv6((), (), model=self.variant),
                 timing=OCRTiming(det_s=det_s, rec_s=0.0, total_s=total_s),
             )
 
@@ -327,9 +327,10 @@ class PP_OCRv6:
         total_s = time.perf_counter() - total_start
         self.memory.on_predict_end()
         return PipelineResult(
-            result=OCRResult(
-                detections=tuple(filtered_detections),
-                recognitions=tuple(filtered_recognitions),
+            result=OCRResult.from_ppocrv6(
+                tuple(filtered_detections),
+                tuple(filtered_recognitions),
+                model=self.variant,
             ),
             timing=OCRTiming(det_s=det_s, rec_s=rec_s, total_s=total_s),
         )
