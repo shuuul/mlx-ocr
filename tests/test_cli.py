@@ -532,7 +532,9 @@ def test_cli_routes_pdf_pages_to_vlm_as_temp_png(
     pdf_path = tmp_path / "doc.pdf"
     pdf_path.write_bytes(b"%PDF")
 
-    result = runner.invoke(cli.app, ["--path", str(pdf_path), "--engine", "glm-ocr", "--format", "txt"])
+    result = runner.invoke(
+        cli.app, ["--path", str(pdf_path), "--engine", "glm-ocr", "--format", "txt"]
+    )
 
     assert result.exit_code == 0
     assert result.output == "# Page 1\nVLM text from doc_page_0001.png\n"

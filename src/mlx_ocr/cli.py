@@ -561,7 +561,9 @@ def ocr(
     ] = None,
     vlm_task: Annotated[
         str,
-        typer.Option("--vlm-task", help="VLM OCR task: text, formula, table, schema, or PaddleOCR-VL chart."),
+        typer.Option(
+            "--vlm-task", help="VLM OCR task: text, formula, table, schema, or PaddleOCR-VL chart."
+        ),
     ] = "text",
     prompt: Annotated[
         str | None,

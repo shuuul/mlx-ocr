@@ -53,6 +53,12 @@ uv run ruff check .
 uv run prek run --all-files
 ```
 
+Before committing, run the full pre-commit suite:
+
+```bash
+uv run prek run --all-files
+```
+
 Python 3.12+. Package manager: [uv](https://docs.astral.sh/uv/).
 
 ## Agent Workflow

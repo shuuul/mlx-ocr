@@ -38,9 +38,13 @@ def paddlex_blocks(result: OCRResult) -> tuple[tuple[BoundingBox, str, float, fl
         if block.box is None:
             raise ValueError(f"OCR block {index} is missing geometry required for PaddleX output")
         if block.detection_score is None:
-            raise ValueError(f"OCR block {index} is missing detection score required for PaddleX output")
+            raise ValueError(
+                f"OCR block {index} is missing detection score required for PaddleX output"
+            )
         if block.recognition_score is None:
-            raise ValueError(f"OCR block {index} is missing recognition score required for PaddleX output")
+            raise ValueError(
+                f"OCR block {index} is missing recognition score required for PaddleX output"
+            )
         fields.append((block.box, block.text, block.detection_score, block.recognition_score))
     return tuple(fields)
 
