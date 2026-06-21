@@ -107,8 +107,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--backends",
         type=parse_backends,
-        default=list(BACKENDS),
-        help=f"Comma-separated backends. Choices: {', '.join(BACKENDS)}.",
+        default=["mlx"],
+        help=f"Comma-separated backends. Defaults to mlx. Choices: {', '.join(BACKENDS)}.",
     )
     parser.add_argument(
         "--variants",
@@ -171,6 +171,7 @@ def main() -> None:
     merged_records = []
     for path in result_paths:
         merged_records.extend(records_from_json(path.read_text(encoding="utf-8")))
+    args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(records_to_json(merged_records), encoding="utf-8")
     print(f"saved merged results to {args.output}", flush=True)
     print_comparison_table(result_paths)

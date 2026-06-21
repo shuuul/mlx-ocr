@@ -20,10 +20,13 @@ source .venv-paddle/bin/activate
 pip install -r benchmarks/requirements-paddle.txt
 ```
 
-Then run the full suite with:
+Then run the Paddle backends with:
 
 ```bash
-PADDLE_BENCHMARK_PYTHON=.venv-paddle/bin/python uv run python -m benchmarks.run --variant medium
+PADDLE_BENCHMARK_PYTHON=.venv-paddle/bin/python \
+uv run python -m benchmarks.run \
+  --backends mlx,paddle_cpu,paddle_onnx \
+  --variant medium
 ```
 
 ### MinerU pipeline backend
@@ -66,22 +69,31 @@ Paddle and ONNX runners execute in separate subprocesses so RSS measurements are
 
 ## Run
 
-Benchmark all backends on the default example images (`examples/images/`):
+Benchmark the `mlx` backend on the default example images (`examples/images/`):
 
 ```bash
 uv run python -m benchmarks.run --variant medium
 ```
 
+By default, the orchestrator runs only `mlx`, which works from the main project
+environment. External backends must be selected explicitly and pointed at their
+separate virtualenvs.
+
 Full comparison across variants:
 
 ```bash
+MINERU_BENCHMARK_PYTHON=.venv-mineru/bin/python \
+PADDLE_BENCHMARK_PYTHON=.venv-paddle/bin/python \
 uv run python -m benchmarks.run \
-  --backends mlx,paddle_cpu,paddle_onnx \
+  --backends mlx,mineru_pipeline,paddle_cpu,paddle_onnx \
   --variants tiny small medium \
   --warmup 2 \
   --runs 5 \
   --output benchmarks/results/run_latest.json
 ```
+
+Generated `benchmarks/results/*.json` files are local artifacts and are ignored
+by git.
 
 Run a single backend:
 
