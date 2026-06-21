@@ -10,6 +10,7 @@ Sample images and documents aligned with [PaddleOCR](../PaddleOCR) PP-OCRv6 conf
 | `images/word_1.jpg` | `configs/rec/PP-OCRv6/*_rec.yml` → `doc/imgs_words/ch/word_1.jpg` | Single-line recognition sample |
 | `images/sample_doc.jpg` | mlx-ocr golden / synthetic doc | Regression parity image |
 | `images/general_ocr_002.png` | [PaddleOCR 3.x OCR docs](https://github.com/PaddlePaddle/PaddleOCR/blob/main/docs/version3.x/pipeline_usage/OCR.md) | Boarding-pass e2e demo |
+| `ppocrv6.pdf` | PP-OCRv6 paper PDF | Multi-page PDF OCR demo |
 
 Sources:
 
@@ -23,7 +24,7 @@ Use the project CLI for all examples:
 ```bash
 uv run mlx-ocr --path examples/images/img_10.jpg --format markdown
 uv run mlx-ocr --path examples/images --format json --output ocr-output
-uv run mlx-ocr --path /path/to/document.pdf --format markdown --start 0 --end 2
+uv run mlx-ocr --path examples/ppocrv6.pdf --format markdown --start 0 --end 2
 ```
 
 `--format` selects the result format:
