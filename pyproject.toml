@@ -7,12 +7,12 @@ authors = [
     { name = "shuuul", email = "zetarylee@gmail.com" }
 ]
 requires-python = ">=3.12"
-license = { text = "MIT" }
+license = "MIT"
+license-files = ["LICENSE"]
 keywords = ["ocr", "mlx", "paddleocr", "pp-ocrv6", "apple-silicon"]
 classifiers = [
     "Development Status :: 2 - Pre-Alpha",
     "Intended Audience :: Developers",
-    "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
     "Topic :: Scientific/Engineering :: Image Recognition",
@@ -27,6 +27,11 @@ dependencies = [
     "safetensors>=0.8.0",
     "typer>=0.20.0",
 ]
+
+[project.urls]
+Homepage = "https://github.com/shuuul/mlx-ocr"
+Repository = "https://github.com/shuuul/mlx-ocr"
+Issues = "https://github.com/shuuul/mlx-ocr/issues"
 
 [project.optional-dependencies]
 mcp = [
