@@ -5,10 +5,10 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from mlx_ocr.hub.download import download_model
-from mlx_ocr.hub.registry import ModelVariant
-from mlx_ocr.models.rec import RecognitionModel
-from mlx_ocr.preprocess.rec import rec_preprocess
+from mlx4ocr.hub.download import download_model
+from mlx4ocr.hub.registry import ModelVariant
+from mlx4ocr.models.rec import RecognitionModel
+from mlx4ocr.preprocess.rec import rec_preprocess
 from tests.conftest import GOLDEN_ROOT, load_golden_npy
 from tests.reference.compare import assert_allclose
 

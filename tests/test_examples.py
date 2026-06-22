@@ -8,7 +8,7 @@ import cv2
 import numpy as np
 import pytest
 
-from mlx_ocr import PP_OCRv6
+from mlx4ocr import PP_OCRv6
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 EXAMPLES_ROOT = REPO_ROOT / "examples"

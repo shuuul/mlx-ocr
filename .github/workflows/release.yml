@@ -95,10 +95,10 @@ jobs:
           "$python_bin" - <<'PY'
           from importlib.metadata import version
 
-          import mlx_ocr
+          import mlx4ocr
 
           assert version("mlx4ocr")
-          assert mlx_ocr.__name__ == "mlx_ocr"
+          assert mlx4ocr.__name__ == "mlx4ocr"
           PY
 
   github-release:

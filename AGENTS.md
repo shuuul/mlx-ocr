@@ -29,7 +29,7 @@ Each repo ships `config.json`, `inference.yml`, `model.safetensors`, and `prepro
 ## Repository Layout
 
 ```
-src/mlx_ocr/
+src/mlx4ocr/
   hub/          # HF download + weight loading
   models/       # MLX modules (backbone, neck, head)
   preprocess/   # image transforms matching inference.yml
@@ -78,7 +78,7 @@ Python 3.12+. Package manager: [uv](https://docs.astral.sh/uv/).
 ## Public Surface Rules
 
 - Treat README examples, `pyproject.toml` metadata and scripts,
-  `mlx_ocr.__init__` exports, CLI options/output formats, MCP entry points, and
+  `mlx4ocr.__init__` exports, CLI options/output formats, MCP entry points, and
   structured output dataclasses as public-facing surfaces.
 - Update README and tests when a public CLI option, output layout, Python API,
   model variant behavior, optional dependency, or install command changes.

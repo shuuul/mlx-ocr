@@ -101,7 +101,7 @@ Python API:
 ```python
 import cv2
 
-from mlx_ocr import PP_OCRv6
+from mlx4ocr import PP_OCRv6
 
 image = cv2.imread("examples/images/img_10.jpg")
 ocr = PP_OCRv6.from_hub("medium")
@@ -123,7 +123,7 @@ items with optional geometry and detection/recognition scores.
 Optional VLM OCR API, using GLM-OCR or PaddleOCR-VL through `mlx-vlm`:
 
 ```python
-from mlx_ocr import VLMOCR
+from mlx4ocr import VLMOCR
 
 # GLM-OCR is the default VLM preset.
 ocr = VLMOCR.from_hub()
@@ -138,7 +138,7 @@ finally:
 Use PaddleOCR-VL by selecting the preset engine:
 
 ```python
-from mlx_ocr import VLMOCR
+from mlx4ocr import VLMOCR
 
 ocr = VLMOCR.from_hub(engine="paddleocr-vl", task="chart")
 
@@ -288,7 +288,7 @@ different tiers. For example, MinerU `ch_server` is closest to small detection
 with medium recognition:
 
 ```python
-from mlx_ocr import PP_OCRv6
+from mlx4ocr import PP_OCRv6
 
 ocr = PP_OCRv6.from_hub("medium", det_variant="small")
 ```
@@ -296,7 +296,7 @@ ocr = PP_OCRv6.from_hub("medium", det_variant="small")
 To download model artifacts without constructing the OCR pipeline:
 
 ```python
-from mlx_ocr import download_model
+from mlx4ocr import download_model
 
 artifacts = download_model("medium", "det")
 print(artifacts.config_data["model_type"])

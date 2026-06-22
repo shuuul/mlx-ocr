@@ -98,7 +98,7 @@ by git.
 Run a single backend:
 
 ```bash
-uv run python -m benchmarks.runners.mlx_ocr \
+uv run python -m benchmarks.runners.mlx4ocr \
   --variant medium \
   --output benchmarks/results/mlx_medium.json
 ```

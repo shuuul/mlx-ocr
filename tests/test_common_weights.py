@@ -11,7 +11,7 @@ import pytest
 from huggingface_hub import hf_hub_download
 from safetensors.numpy import save_file
 
-from mlx_ocr.hub.weights import (
+from mlx4ocr.hub.weights import (
     WeightMapper,
     align_tensor_to_parameter,
     flatten_module_parameters,
@@ -20,7 +20,7 @@ from mlx_ocr.hub.weights import (
     paddle_conv_weight_to_mlx,
     rewrite_hub_key,
 )
-from mlx_ocr.models.common import (
+from mlx4ocr.models.common import (
     Conv2DBN,
     ConvBNAct,
     DilatedReparamBlock,
@@ -28,7 +28,7 @@ from mlx_ocr.models.common import (
     SELayer,
     build_activation,
 )
-from mlx_ocr.models.common.activations import HardSigmoid, HardSigmoidClip
+from mlx4ocr.models.common.activations import HardSigmoid, HardSigmoidClip
 
 
 def test_hard_sigmoid_clip_matches_paddle_functional() -> None:

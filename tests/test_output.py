@@ -7,8 +7,8 @@ from pathlib import Path
 
 import pytest
 
-from mlx_ocr.output import save_to_json, save_to_markdown, to_markdown, to_system_results_line
-from mlx_ocr.types import BoundingBox, OCRResult, OCRTextBlock, TextDetection, TextRecognition
+from mlx4ocr.output import save_to_json, save_to_markdown, to_markdown, to_system_results_line
+from mlx4ocr.types import BoundingBox, OCRResult, OCRTextBlock, TextDetection, TextRecognition
 
 
 def test_ocr_result_from_ppocrv6_builds_blocks() -> None:

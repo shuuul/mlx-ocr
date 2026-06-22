@@ -12,8 +12,8 @@ import pytest
 import typer
 from typer.testing import CliRunner
 
-import mlx_ocr.cli as cli
-from mlx_ocr.cli import (
+import mlx4ocr.cli as cli
+from mlx4ocr.cli import (
     InputDocument,
     PageOCRResult,
     RenderedPage,
@@ -25,9 +25,9 @@ from mlx_ocr.cli import (
     resolve_format,
     resolve_vlm_options,
 )
-from mlx_ocr.output import OCRTiming
-from mlx_ocr.pipeline import PipelineResult
-from mlx_ocr.types import BoundingBox, OCRResult, OCRTextBlock
+from mlx4ocr.output import OCRTiming
+from mlx4ocr.pipeline import PipelineResult
+from mlx4ocr.types import BoundingBox, OCRResult, OCRTextBlock
 
 runner = CliRunner()
 
@@ -615,6 +615,6 @@ def test_pyproject_declares_documented_console_scripts() -> None:
 
     assert data["project"]["name"] == "mlx4ocr"
     assert data["project"]["scripts"] == {
-        "mlx4ocr": "mlx_ocr.cli:main",
-        "mlx4ocr-mcp": "mlx_ocr.mcp:main",
+        "mlx4ocr": "mlx4ocr.cli:main",
+        "mlx4ocr-mcp": "mlx4ocr.mcp:main",
     }

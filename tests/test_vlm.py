@@ -10,9 +10,9 @@ from typing import cast
 
 import pytest
 
-import mlx_ocr.vlm as vlm
-from mlx_ocr import VLMOCR
-from mlx_ocr.vlm import GLMOCRTask, VLMOCRTask, _resolve_prompt
+import mlx4ocr.vlm as vlm
+from mlx4ocr import VLMOCR
+from mlx4ocr.vlm import GLMOCRTask, VLMOCRTask, _resolve_prompt
 
 
 class FakeMLXVLM(ModuleType):

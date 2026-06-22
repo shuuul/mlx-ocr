@@ -9,13 +9,13 @@ import mlx.core as mx
 import numpy as np
 import pytest
 
-from mlx_ocr.hub.paddle_pretrained import load_pretrained_rec_state
-from mlx_ocr.hub.rec_weight_patch import (
+from mlx4ocr.hub.paddle_pretrained import load_pretrained_rec_state
+from mlx4ocr.hub.rec_weight_patch import (
     patch_recognition_hub_tensors,
     resolve_recognition_weight_source,
 )
-from mlx_ocr.hub.weights import paddle_conv_weight_to_mlx
-from mlx_ocr.models.rec.model import split_recognition_attention_tensors
+from mlx4ocr.hub.weights import paddle_conv_weight_to_mlx
+from mlx4ocr.models.rec.model import split_recognition_attention_tensors
 
 
 def test_split_recognition_attention_tensors_expands_fused_qkv() -> None:

@@ -5,7 +5,7 @@ from __future__ import annotations
 import mlx.core as mx
 import numpy as np
 
-from mlx_ocr.preprocess.det import det_preprocess, normalize_det_image_mlx, resize_det_image
+from mlx4ocr.preprocess.det import det_preprocess, normalize_det_image_mlx, resize_det_image
 from tests.conftest import GOLDEN_ROOT, load_golden_npy
 from tests.reference.compare import assert_allclose
 

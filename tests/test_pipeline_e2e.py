@@ -9,15 +9,15 @@ from typing import cast
 import numpy as np
 import pytest
 
-from mlx_ocr.hub.download import HubArtifacts
-from mlx_ocr.hub.rec_weight_patch import RecognitionWeightSource
-from mlx_ocr.hub.registry import ModelTask, ModelVariant
-from mlx_ocr.pipeline import PP_OCRv6, sorted_detections
-from mlx_ocr.pipeline.crop import sorted_box_indices
-from mlx_ocr.pipeline.memory import MemoryPolicy
-from mlx_ocr.postprocess.ctc import ctc_decode
-from mlx_ocr.preprocess.rec import rec_preprocess
-from mlx_ocr.types import TextDetection
+from mlx4ocr.hub.download import HubArtifacts
+from mlx4ocr.hub.rec_weight_patch import RecognitionWeightSource
+from mlx4ocr.hub.registry import ModelTask, ModelVariant
+from mlx4ocr.pipeline import PP_OCRv6, sorted_detections
+from mlx4ocr.pipeline.crop import sorted_box_indices
+from mlx4ocr.pipeline.memory import MemoryPolicy
+from mlx4ocr.postprocess.ctc import ctc_decode
+from mlx4ocr.preprocess.rec import rec_preprocess
+from mlx4ocr.types import TextDetection
 from tests.conftest import GOLDEN_ROOT, load_golden_npy
 from tests.reference.compare import assert_allclose
 
@@ -144,7 +144,7 @@ def test_pp_ocrv6_from_hub_accepts_stage_variants(
         constructed.append((variant, det_artifacts.variant, rec_artifacts.variant))
         return cast(PP_OCRv6, object())
 
-    monkeypatch.setattr("mlx_ocr.pipeline.ocr.download_model", fake_download_model)
+    monkeypatch.setattr("mlx4ocr.pipeline.ocr.download_model", fake_download_model)
     monkeypatch.setattr(PP_OCRv6, "from_artifacts", classmethod(fake_from_artifacts))
 
     PP_OCRv6.from_hub("medium", det_variant="small")

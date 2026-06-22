@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from mlx_ocr.preprocess.rec import rec_preprocess
+from mlx4ocr.preprocess.rec import rec_preprocess
 from tests.conftest import GOLDEN_ROOT, load_golden_npy
 from tests.reference.compare import assert_allclose
 from tests.reference.preprocess.rec_resize_norm import resize_norm_img

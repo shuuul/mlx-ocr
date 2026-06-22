@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from mlx_ocr.postprocess.db import db_postprocess
+from mlx4ocr.postprocess.db import db_postprocess
 from tests.reference.postprocess.db_postprocess import DBPostProcess
 
 

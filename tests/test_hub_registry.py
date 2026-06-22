@@ -1,6 +1,6 @@
 """Tests for Hugging Face Hub registry."""
 
-from mlx_ocr.hub import hub_model_ref, list_hub_models
+from mlx4ocr.hub import hub_model_ref, list_hub_models
 
 
 def test_hub_model_ref_medium_det() -> None:

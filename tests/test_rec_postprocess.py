@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from mlx_ocr.postprocess.ctc import ctc_decode, load_character_dict
+from mlx4ocr.postprocess.ctc import ctc_decode, load_character_dict
 from tests.conftest import DICT_ROOT, GOLDEN_ROOT, load_golden_npy
 from tests.reference.postprocess.ctc_decode import CTCLabelDecode
 

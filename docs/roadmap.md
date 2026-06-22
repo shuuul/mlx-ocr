@@ -46,7 +46,7 @@ Initial target, now mostly implemented:
 
 ## Why this is not a small model swap
 
-The current `src/mlx_ocr` pipeline is a classic OCR stack:
+The current `src/mlx4ocr` pipeline is a classic OCR stack:
 
 ```diagram
 ╭────────────╮   ╭────────────╮   ╭─────────────╮   ╭──────────────╮
@@ -128,7 +128,7 @@ Keep `PP_OCRv6` as the default local OCR engine, but allow its result types to
 change. The VLM-facing API uses the same generalized output model:
 
 ```python
-from mlx_ocr import VLMOCR
+from mlx4ocr import VLMOCR
 
 ocr = VLMOCR.from_hub()
 result = ocr.predict_path("document.png")
@@ -164,14 +164,14 @@ requires `--prompt`.
 
 ## Proposed source refactor
 
-The current `src/mlx_ocr` package mixes three concerns in public-facing modules:
+The current `src/mlx4ocr` package mixes three concerns in public-facing modules:
 input rendering, engine execution, and output formatting. To add GLM-OCR cleanly,
 introduce a small engine boundary before adding `mlx-vlm` code.
 
 ### Implemented layout
 
 ```text
-src/mlx_ocr/
+src/mlx4ocr/
   vlm.py             # optional mlx-vlm backend, imports mlx_vlm lazily
   pipeline/
     ocr.py           # keep PP_OCRv6 detector/recognizer implementation

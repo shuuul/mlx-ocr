@@ -1,6 +1,6 @@
 [project]
 name = "mlx4ocr"
-version = "0.1.1"
+version = "0.1.2"
 description = "MLX-based PP-OCRv6 inference on Apple Silicon"
 readme = "README.md"
 authors = [
@@ -45,8 +45,8 @@ vlm = [
 ]
 
 [project.scripts]
-mlx4ocr = "mlx_ocr.cli:main"
-mlx4ocr-mcp = "mlx_ocr.mcp:main"
+mlx4ocr = "mlx4ocr.cli:main"
+mlx4ocr-mcp = "mlx4ocr.mcp:main"
 
 [dependency-groups]
 dev = [
@@ -60,7 +60,7 @@ requires = ["uv_build>=0.11.22,<0.12.0"]
 build-backend = "uv_build"
 
 [tool.uv.build-backend]
-module-name = "mlx_ocr"
+module-name = "mlx4ocr"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

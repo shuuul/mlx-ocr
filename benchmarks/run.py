@@ -24,7 +24,7 @@ from benchmarks.compare import print_comparison_table
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
 RUNNER_MODULES: dict[Backend, str] = {
-    "mlx": "benchmarks.runners.mlx_ocr",
+    "mlx": "benchmarks.runners.mlx4ocr",
     "paddle_cpu": "benchmarks.runners.paddle_cpu",
     "paddle_onnx": "benchmarks.runners.paddle_onnx",
     "mineru_pipeline": "benchmarks.runners.mineru_pipeline",
