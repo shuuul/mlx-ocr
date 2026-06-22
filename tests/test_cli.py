@@ -613,7 +613,8 @@ def test_pyproject_declares_documented_console_scripts() -> None:
     pyproject_path = Path(__file__).resolve().parents[1] / "pyproject.toml"
     data = tomllib.loads(pyproject_path.read_text(encoding="utf-8"))
 
+    assert data["project"]["name"] == "mlx4ocr"
     assert data["project"]["scripts"] == {
-        "mlx-ocr": "mlx_ocr.cli:main",
-        "mlx-ocr-mcp": "mlx_ocr.mcp:main",
+        "mlx4ocr": "mlx_ocr.cli:main",
+        "mlx4ocr-mcp": "mlx_ocr.mcp:main",
     }

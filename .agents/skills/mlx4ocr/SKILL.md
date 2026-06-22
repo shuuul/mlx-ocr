@@ -1,16 +1,15 @@
 ---
-name: mlx-ocr
-description: Runs OCR with the mlx-ocr command line tool from GitHub using uvx or uv tool. Use when extracting text from images or PDFs on macOS with Apple Silicon/MLX.
+name: mlx4ocr
+description: Runs OCR with the mlx4ocr command line tool from GitHub using uvx or uv tool. Use when extracting text from images or PDFs on macOS with Apple Silicon/MLX.
 license: MIT
 compatibility: Requires macOS, Python 3.12+, uv, and local file access. Intended for Apple Silicon MLX inference; do not suggest Linux or Windows usage.
 metadata:
-  source: https://github.com/shuuul/mlx-ocr
+  source: https://github.com/shuuul/mlx4ocr
 ---
 
-# mlx-ocr
+# mlx4ocr
 
-Use this skill to guide users through local OCR with `mlx-ocr` from
-`https://github.com/shuuul/mlx-ocr`.
+Use this skill to guide users through local OCR with the `mlx4ocr` CLI.
 
 ## Constraints
 
@@ -22,10 +21,10 @@ Use this skill to guide users through local OCR with `mlx-ocr` from
 
 ## One-off OCR with uvx
 
-Run the command directly from the GitHub repository:
+Run the command directly from PyPI:
 
 ```bash
-uvx --from git+https://github.com/shuuul/mlx-ocr mlx-ocr \
+uvx --from mlx4ocr mlx4ocr \
   --path /path/to/input.pdf \
   --format markdown
 ```
@@ -39,7 +38,7 @@ Supported formats:
 By default, output is printed to stdout. Save files by adding `--output`:
 
 ```bash
-uvx --from git+https://github.com/shuuul/mlx-ocr mlx-ocr \
+uvx --from mlx4ocr mlx4ocr \
   --path /path/to/input.pdf \
   --format json \
   --output ocr-output
@@ -52,25 +51,25 @@ Saved files are written under `<output>/<stem>/ocr/`.
 Install once:
 
 ```bash
-uv tool install git+https://github.com/shuuul/mlx-ocr
+uv tool install mlx4ocr
 ```
 
 Then run:
 
 ```bash
-mlx-ocr --path /path/to/image.jpg --format markdown
+mlx4ocr --path /path/to/image.jpg --format markdown
 ```
 
 Upgrade later:
 
 ```bash
-uv tool upgrade mlx-ocr
+uv tool upgrade mlx4ocr
 ```
 
 Remove when no longer needed:
 
 ```bash
-uv tool uninstall mlx-ocr
+uv tool uninstall mlx4ocr
 ```
 
 ## PDF page ranges
@@ -78,7 +77,7 @@ uv tool uninstall mlx-ocr
 Use zero-based inclusive page indexes:
 
 ```bash
-mlx-ocr --path /path/to/document.pdf --format markdown --start 0 --end 2
+mlx4ocr --path /path/to/document.pdf --format markdown --start 0 --end 2
 ```
 
 For multi-page PDFs, text and Markdown outputs preserve page boundaries with page
@@ -106,7 +105,7 @@ headings. JSON output includes `page_index` for each page.
 Image to Markdown on stdout:
 
 ```bash
-uvx --from git+https://github.com/shuuul/mlx-ocr mlx-ocr \
+uvx --from git+https://github.com/shuuul/mlx4ocr mlx4ocr \
   --path receipt.jpg \
   --format markdown
 ```
@@ -114,7 +113,7 @@ uvx --from git+https://github.com/shuuul/mlx-ocr mlx-ocr \
 PDF pages 1-3 to a saved Markdown file tree:
 
 ```bash
-uvx --from git+https://github.com/shuuul/mlx-ocr mlx-ocr \
+uvx --from git+https://github.com/shuuul/mlx4ocr mlx4ocr \
   --path report.pdf \
   --format markdown \
   --start 0 \
@@ -125,5 +124,5 @@ uvx --from git+https://github.com/shuuul/mlx-ocr mlx-ocr \
 Directory of images to JSON:
 
 ```bash
-mlx-ocr --path ./images --format json --output ocr-output
+mlx4ocr --path ./images --format json --output ocr-output
 ```

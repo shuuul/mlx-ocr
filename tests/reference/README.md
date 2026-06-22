@@ -1,7 +1,7 @@
-# PaddleOCR reference vendoring for mlx-ocr parity tests
+# PaddleOCR reference vendoring for mlx4ocr parity tests
 
 Vendored copies of PaddleOCR preprocess/postprocess code and configs used as the
-numerical reference for mlx-ocr. No Paddle runtime is required to import or run
+numerical reference for mlx4ocr. No Paddle runtime is required to import or run
 these modules.
 
 ## Source commit

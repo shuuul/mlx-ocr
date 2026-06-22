@@ -22,7 +22,7 @@ def build_paddle_pipeline(
     engine: PaddleEngine,
     device: str = "cpu",
 ) -> PaddleOCR:
-    """Construct a PaddleOCR pipeline aligned with mlx-ocr det+rec scope."""
+    """Construct a PaddleOCR pipeline aligned with mlx4ocr det+rec scope."""
     return PaddleOCR(
         ocr_version="PP-OCRv6",
         text_detection_model_name=f"PP-OCRv6_{variant}_det",

@@ -1,4 +1,4 @@
-"""Frozen domain records for mlx-ocr inference outputs."""
+"""Frozen domain records for mlx4ocr inference outputs."""
 
 from __future__ import annotations
 

@@ -1,4 +1,4 @@
-"""MCP server entry point for mlx-ocr."""
+"""MCP server entry point for mlx4ocr."""
 
 from __future__ import annotations
 
@@ -39,10 +39,10 @@ def create_server() -> MCPServer:
     try:
         from mcp.server.fastmcp import FastMCP
     except ImportError as exc:
-        message = "Install MCP support with `uv sync --extra mcp` or `pip install mlx-ocr[mcp]`."
+        message = "Install MCP support with `uv sync --extra mcp` or `pip install mlx4ocr[mcp]`."
         raise RuntimeError(message) from exc
 
-    server = cast(MCPServer, FastMCP("mlx-ocr"))
+    server = cast(MCPServer, FastMCP("mlx4ocr"))
 
     @server.tool()
     def ocr_markdown(

@@ -1,6 +1,6 @@
 # Roadmap: optional VLM OCR backend with GLM-OCR
 
-This document tracks the VLM OCR roadmap for `mlx-ocr`: keep PP-OCRv6 as the
+This document tracks the VLM OCR roadmap for `mlx4ocr`: keep PP-OCRv6 as the
 default local OCR pipeline, and support GLM-OCR through an optional `vlm` extra
 powered by [`mlx-vlm`](https://github.com/Blaizzy/mlx-vlm).
 
@@ -41,7 +41,7 @@ Initial target, now mostly implemented:
 - Primary task: full-image text OCR.
 - Secondary prompt presets: formula recognition, table recognition, and
   schema-guided structured extraction.
-- Public UX: preserve the current `mlx-ocr` CLI and Python API style while
+- Public UX: preserve the current `mlx4ocr` CLI and Python API style while
   making the selected OCR engine explicit.
 
 ## Why this is not a small model swap
@@ -119,7 +119,7 @@ README install examples should document:
 ```bash
 uv sync --extra vlm
 # or
-uv tool install 'git+https://github.com/shuuul/mlx-ocr.git[vlm]'
+uv tool install 'git+https://github.com/shuuul/mlx4ocr.git[vlm]'
 ```
 
 ### Python API
@@ -147,8 +147,8 @@ the existing `task`, `prompt`, `model_id`, and `max_tokens` parameters.
 The CLI engine selector preserves PP-OCRv6 as the default behavior:
 
 ```bash
-mlx-ocr --path input.png --engine ppocrv6 --format markdown
-mlx-ocr --path input.png --engine glm-ocr --format markdown
+mlx4ocr --path input.png --engine ppocrv6 --format markdown
+mlx4ocr --path input.png --engine glm-ocr --format markdown
 ```
 
 VLM-specific options:
@@ -376,7 +376,7 @@ bottleneck.
   and large-memory models.
 - Add a package metadata test that protects the `vlm` extra and README command
   examples.
-- Decide whether `mlx-ocr[vlm]` install examples should be shown for pip/uv tool
+- Decide whether `mlx4ocr[vlm]` install examples should be shown for pip/uv tool
   users in addition to `uv sync --extra vlm` for development checkouts.
 
 ## Open decisions
@@ -395,11 +395,11 @@ bottleneck.
 ## Definition of done for first GLM-OCR release
 
 - `uv sync --extra vlm` installs the optional backend. Done.
-- `mlx-ocr --engine glm-ocr --path image.png --format markdown` returns generated
+- `mlx4ocr --engine glm-ocr --path image.png --format markdown` returns generated
   text from GLM-OCR. Done.
-- `mlx-ocr --engine glm-ocr --path examples/ppocrv6.pdf --format markdown`
+- `mlx4ocr --engine glm-ocr --path examples/ppocrv6.pdf --format markdown`
   processes PDF pages through temporary PNGs. Smoke-tested.
-- Default `mlx-ocr --path image.png` still uses PP-OCRv6. Done.
+- Default `mlx4ocr --path image.png` still uses PP-OCRv6. Done.
 - PP-OCRv6 inference behavior remains unchanged, but its public result shape
   uses `OCRResult.blocks` instead of parallel `detections` and `recognitions`.
   Done.

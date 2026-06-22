@@ -1,6 +1,6 @@
 [project]
-name = "mlx-ocr"
-version = "0.1.0"
+name = "mlx4ocr"
+version = "0.1.1"
 description = "MLX-based PP-OCRv6 inference on Apple Silicon"
 readme = "README.md"
 authors = [
@@ -21,17 +21,20 @@ dependencies = [
     "huggingface-hub>=1.20.1",
     "mlx>=0.31.2",
     "numpy>=2.4.6",
+    "opencv-python-headless>=4.8",
     "pillow>=12.2.0",
+    "pyclipper>=1.3",
     "pymupdf>=1.26.0",
     "pyyaml>=6.0.2",
     "safetensors>=0.8.0",
+    "shapely>=2.0",
     "typer>=0.20.0",
 ]
 
 [project.urls]
-Homepage = "https://github.com/shuuul/mlx-ocr"
-Repository = "https://github.com/shuuul/mlx-ocr"
-Issues = "https://github.com/shuuul/mlx-ocr/issues"
+Homepage = "https://github.com/shuuul/mlx4ocr"
+Repository = "https://github.com/shuuul/mlx4ocr"
+Issues = "https://github.com/shuuul/mlx4ocr/issues"
 
 [project.optional-dependencies]
 mcp = [
@@ -42,22 +45,22 @@ vlm = [
 ]
 
 [project.scripts]
-mlx-ocr = "mlx_ocr.cli:main"
-mlx-ocr-mcp = "mlx_ocr.mcp:main"
+mlx4ocr = "mlx_ocr.cli:main"
+mlx4ocr-mcp = "mlx_ocr.mcp:main"
 
 [dependency-groups]
 dev = [
     "prek>=0.4.3",
     "pytest>=8.0",
     "ruff>=0.9",
-    "opencv-python-headless>=4.8",
-    "pyclipper>=1.3",
-    "shapely>=2.0",
 ]
 
 [build-system]
 requires = ["uv_build>=0.11.22,<0.12.0"]
 build-backend = "uv_build"
+
+[tool.uv.build-backend]
+module-name = "mlx_ocr"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

@@ -1,11 +1,11 @@
-# mlx-ocr Benchmarks Guide
+# mlx4ocr Benchmarks Guide
 
 Root `AGENTS.md` rules apply here. These additional rules keep benchmarks useful
 without making routine development depend on heavyweight external runtimes.
 
 ## Dependency Isolation
 
-- Keep mlx-ocr, PaddleOCR, and MinerU benchmark environments isolated. Do not add
+- Keep mlx4ocr, PaddleOCR, and MinerU benchmark environments isolated. Do not add
   PaddleOCR or MinerU dependencies to the main project environment unless the
   user explicitly requests it.
 - Use `PADDLE_BENCHMARK_PYTHON` and `MINERU_BENCHMARK_PYTHON` for external

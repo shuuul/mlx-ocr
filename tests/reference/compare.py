@@ -19,7 +19,7 @@ def assert_allclose(
     """Assert two arrays are close within tolerance, with a readable diff on failure.
 
     Args:
-        actual: Array produced by mlx-ocr.
+        actual: Array produced by mlx4ocr.
         expected: Reference or golden array.
         rtol: Relative tolerance passed to ``numpy.testing.assert_allclose``.
         atol: Absolute tolerance passed to ``numpy.testing.assert_allclose``.

@@ -1,4 +1,4 @@
-"""Run mlx-ocr pipeline on committed PaddleOCR example images."""
+"""Run mlx4ocr pipeline on committed PaddleOCR example images."""
 
 from __future__ import annotations
 

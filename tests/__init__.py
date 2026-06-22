@@ -1,1 +1,1 @@
-"""Tests for mlx-ocr."""
+"""Tests for mlx4ocr."""

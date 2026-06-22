@@ -455,7 +455,7 @@ def run_ocr(
                 if vlm_options is None:
                     raise RuntimeError("VLM OCR options are required for VLM OCR")
                 if document.is_pdf:
-                    with tempfile.TemporaryDirectory(prefix="mlx-ocr-vlm-") as temp_dir:
+                    with tempfile.TemporaryDirectory(prefix="mlx4ocr-vlm-") as temp_dir:
                         temp_path = Path(temp_dir)
                         for rendered in iter_rendered_pages(document, start=start, end=end):
                             page_path = temp_path / f"{rendered.output_name}.png"

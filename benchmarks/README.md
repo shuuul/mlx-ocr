@@ -1,10 +1,10 @@
 # PP-OCRv6 Backend Benchmarks
 
-Compare **mlx-ocr** (MLX on Apple Silicon), **MinerU pipeline** (`PytorchPaddleOCR` on MPS/CUDA), **PaddleOCR CPU** (`engine=paddle`), and **PaddleOCR ONNX** (`engine=onnxruntime` with `CPUExecutionProvider` on macOS) on the same PP-OCRv6 images and model variants.
+Compare **mlx4ocr** (MLX on Apple Silicon), **MinerU pipeline** (`PytorchPaddleOCR` on MPS/CUDA), **PaddleOCR CPU** (`engine=paddle`), and **PaddleOCR ONNX** (`engine=onnxruntime` with `CPUExecutionProvider` on macOS) on the same PP-OCRv6 images and model variants.
 
 ## Setup
 
-### mlx-ocr backend
+### mlx4ocr backend
 
 ```bash
 uv sync --group dev
@@ -12,7 +12,7 @@ uv sync --group dev
 
 ### PaddleOCR backends
 
-PaddleOCR 3.7 pins `numpy<2.4`, which conflicts with mlx-ocr's `numpy>=2.4`. Install Paddle benchmarks in a **separate virtualenv** and point the orchestrator at it:
+PaddleOCR 3.7 pins `numpy<2.4`, which conflicts with mlx4ocr's `numpy>=2.4`. Install Paddle benchmarks in a **separate virtualenv** and point the orchestrator at it:
 
 ```bash
 python3.12 -m venv .venv-paddle
@@ -119,7 +119,7 @@ uv run python -m benchmarks.compare benchmarks/results/run_latest.json --format 
 | `paddle_onnx` | `onnxruntime` | `cpu` | `CPUExecutionProvider` on macOS |
 | `mineru_pipeline` | PyTorch | `mps` / `cuda` | MinerU `PytorchPaddleOCR` (PP-OCRv6) |
 
-Paddle backends disable document preprocessing and text-line orientation so the benchmark matches mlx-ocr det+rec scope:
+Paddle backends disable document preprocessing and text-line orientation so the benchmark matches mlx4ocr det+rec scope:
 
 - `use_doc_orientation_classify=False`
 - `use_doc_unwarping=False`

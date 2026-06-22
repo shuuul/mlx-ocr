@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Benchmark mlx-ocr PP_OCRv6 pipeline."""
+"""Benchmark mlx4ocr PP_OCRv6 pipeline."""
 
 from __future__ import annotations
 
@@ -77,7 +77,7 @@ def benchmark_variant(
 
 
 def main() -> None:
-    """Run the mlx-ocr benchmark runner."""
+    """Run the mlx4ocr benchmark runner."""
     parser = argparse.ArgumentParser(description=__doc__)
     add_runner_args(parser)
     args = parser.parse_args()

@@ -1,0 +1,156 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  id-token: write
+
+jobs:
+  build:
+    name: Build Python distributions
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version-file: ".python-version"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - name: Verify tag matches package version
+        if: startsWith(github.ref, 'refs/tags/')
+        shell: bash
+        run: |
+          expected="${GITHUB_REF_NAME#v}"
+          python - <<'PY' "$expected"
+          import sys
+          import tomllib
+
+          expected = sys.argv[1]
+          with open("pyproject.toml", "rb") as f:
+              data = tomllib.load(f)
+          name = data["project"]["name"]
+          actual = data["project"]["version"]
+
+          if actual != expected:
+              print(f"Tag {expected!r} does not match {name} version {actual!r}")
+              raise SystemExit(1)
+          PY
+
+      - name: Build mlx4ocr distribution
+        run: uv build --out-dir dist
+
+      - name: Upload distribution artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: python-distributions
+          path: dist/*
+          if-no-files-found: error
+
+  smoke-install:
+    name: Smoke install from GitHub tag
+    needs: build
+    runs-on: macos-14
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version-file: ".python-version"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - name: Install released ref as uv tool
+        run: >-
+          uv tool install --force
+          "mlx4ocr @ git+https://github.com/${{ github.repository }}.git@${{ github.ref_name }}"
+
+      - name: Verify installed executable and import package
+        shell: bash
+        run: |
+          mlx4ocr --help >/dev/null
+          python_bin="$(uv tool dir)/mlx4ocr/bin/python"
+          "$python_bin" - <<'PY'
+          from importlib.metadata import version
+
+          import mlx_ocr
+
+          assert version("mlx4ocr")
+          assert mlx_ocr.__name__ == "mlx_ocr"
+          PY
+
+  github-release:
+    name: Publish GitHub Release
+    needs:
+      - build
+      - smoke-install
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download distribution artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: python-distributions
+          path: dist
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*
+          generate_release_notes: true
+
+  pypi-publish:
+    name: Publish to PyPI
+    needs:
+      - build
+      - smoke-install
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download distribution artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: python-distributions
+          path: dist
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+
+      - name: Publish distributions to PyPI
+        shell: bash
+        run: |
+          set +e
+          output="$(uv publish --trusted-publishing always dist/mlx4ocr-* 2>&1)"
+          status=$?
+          echo "$output"
+          if [ "$status" -eq 0 ]; then
+            exit 0
+          fi
+          if echo "$output" | grep -qiE 'already exists|file already exists'; then
+            echo "Version already exists on PyPI; skipping upload."
+            exit 0
+          fi
+          exit "$status"

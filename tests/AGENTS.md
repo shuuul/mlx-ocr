@@ -1,4 +1,4 @@
-# mlx-ocr Tests Guide
+# mlx4ocr Tests Guide
 
 Root `AGENTS.md` rules apply here. These additional rules keep tests fast,
 deterministic, and useful for public behavior.

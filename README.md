@@ -1,6 +1,7 @@
-# mlx-ocr
+# mlx4ocr
 
-[![Lint](https://github.com/shuuul/mlx-ocr/actions/workflows/lint.yml/badge.svg)](https://github.com/shuuul/mlx-ocr/actions/workflows/lint.yml)
+[![Lint](https://github.com/shuuul/mlx4ocr/actions/workflows/lint.yml/badge.svg)](https://github.com/shuuul/mlx4ocr/actions/workflows/lint.yml)
+[![PyPI](https://img.shields.io/pypi/v/mlx4ocr.svg)](https://pypi.org/project/mlx4ocr/)
 [![Python 3.12+](https://img.shields.io/badge/python-3.12%2B-blue.svg)](https://www.python.org/downloads/)
 [![Apple MLX](https://img.shields.io/badge/Apple-MLX-black.svg)](https://github.com/ml-explore/mlx)
 [![Apple Silicon](https://img.shields.io/badge/platform-Apple%20Silicon-lightgrey.svg)](https://support.apple.com/en-us/116943)
@@ -10,7 +11,7 @@ Apple Silicon OCR powered by [MLX](https://github.com/ml-explore/mlx),
 [PP-OCRv6](https://huggingface.co/collections/PaddlePaddle/pp-ocrv6), and an
 optional VLM backend for GLM-OCR and PaddleOCR-VL.
 
-`mlx-ocr` reimplements PP-OCRv6 detection and recognition for local macOS
+`mlx4ocr` reimplements PP-OCRv6 detection and recognition for local macOS
 inference. It downloads official Hugging Face `safetensors` weights on demand
 and runs the OCR pipeline without a PaddlePaddle runtime. For generated-text OCR,
 it can also run GLM-OCR and PaddleOCR-VL through the optional `mlx-vlm` extra.
@@ -41,23 +42,29 @@ it can also run GLM-OCR and PaddleOCR-VL through the optional `mlx-vlm` extra.
 
 ## Installation
 
-Install directly from GitHub with `uv tool`:
+Install the CLI from PyPI with `uv tool`:
 
 ```bash
-uv tool install git+https://github.com/shuuul/mlx-ocr.git
+uv tool install mlx4ocr
+```
+
+Or install directly from GitHub:
+
+```bash
+uv tool install git+https://github.com/shuuul/mlx4ocr.git
 ```
 
 Or run the CLI without installing it permanently:
 
 ```bash
-uvx --from git+https://github.com/shuuul/mlx-ocr.git mlx-ocr --help
+uvx --from mlx4ocr mlx4ocr --help
 ```
 
 For development from a checkout:
 
 ```bash
-git clone https://github.com/shuuul/mlx-ocr.git
-cd mlx-ocr
+git clone https://github.com/shuuul/mlx4ocr.git
+cd mlx4ocr
 uv sync --group dev
 ```
 
@@ -65,6 +72,7 @@ Optional VLM OCR support through `mlx-vlm` is available as an extra:
 
 ```bash
 uv sync --extra vlm
+uv tool install 'mlx4ocr[vlm]'
 ```
 
 ## Quick start
@@ -72,20 +80,20 @@ uv sync --extra vlm
 Run OCR on an image and print Markdown to stdout:
 
 ```bash
-mlx-ocr --path input.png --format markdown
+mlx4ocr --path input.png --format markdown
 ```
 
 From a development checkout, you can run the bundled examples with `uv run`:
 
 ```bash
-uv run mlx-ocr --path examples/images/img_10.jpg --format markdown
+uv run mlx4ocr --path examples/images/img_10.jpg --format markdown
 ```
 
 Use `uvx` when running directly from GitHub without installation:
 
 ```bash
-uvx --from git+https://github.com/shuuul/mlx-ocr.git \
-  mlx-ocr --path input.png --format markdown
+uvx --from mlx4ocr \
+  mlx4ocr --path input.png --format markdown
 ```
 
 Python API:
@@ -151,7 +159,7 @@ The CLI accepts image files, PDF files, or a non-recursive directory of supporte
 inputs:
 
 ```bash
-mlx-ocr --path examples/images --format json --output ocr-output
+mlx4ocr --path examples/images --format json --output ocr-output
 ```
 
 Supported output formats:
@@ -168,9 +176,9 @@ GLM-OCR and PaddleOCR-VL:
 
 ```bash
 uv sync --extra vlm
-mlx-ocr --path input.png --engine glm-ocr --format markdown
-mlx-ocr --path input.pdf --engine glm-ocr --vlm-task table --max-tokens 1024
-mlx-ocr --path chart.png --engine paddleocr-vl --vlm-task chart --format markdown
+mlx4ocr --path input.png --engine glm-ocr --format markdown
+mlx4ocr --path input.pdf --engine glm-ocr --vlm-task table --max-tokens 1024
+mlx4ocr --path chart.png --engine paddleocr-vl --vlm-task chart --format markdown
 ```
 
 Use `--vlm-model` to select a different compatible Hugging Face model. GLM-OCR
@@ -182,7 +190,7 @@ generalized `result` object with generated text and blocks, not the PaddleX
 
 ### Engine comparison and VLM resource notes
 
-`mlx-ocr` has three local MLX OCR engine presets:
+`mlx4ocr` has three local MLX OCR engine presets:
 
 - `ppocrv6` — default detector/recognizer pipeline. It returns text blocks with
   geometry and detection/recognition scores.
@@ -200,7 +208,7 @@ about 1.8 GB in the smoke test below. If a download stalls through Hugging
 Face/Xet, retry with:
 
 ```bash
-HF_HUB_DISABLE_XET=1 uv run --extra vlm mlx-ocr \
+HF_HUB_DISABLE_XET=1 uv run --extra vlm mlx4ocr \
   --path examples/ppocrv6.pdf --engine glm-ocr --format markdown --start 0 --end 0
 ```
 
@@ -224,7 +232,7 @@ processing time to increase with the generated output length.
 PDF page ranges use 0-based inclusive page indexes:
 
 ```bash
-mlx-ocr --path docs/report.pdf --format markdown --start 0 --end 2
+mlx4ocr --path docs/report.pdf --format markdown --start 0 --end 2
 ```
 
 When `--output` is omitted, results are printed to stdout. When `--output` is
@@ -238,9 +246,9 @@ provided, files are written with this layout:
 Useful options:
 
 ```bash
-mlx-ocr --help
-mlx-ocr --path input.png --variant tiny --format txt
-mlx-ocr --path input.pdf --rec-weight-source auto --no-compile
+mlx4ocr --help
+mlx4ocr --path input.png --variant tiny --format txt
+mlx4ocr --path input.pdf --rec-weight-source auto --no-compile
 ```
 
 ## MCP server
@@ -249,7 +257,7 @@ Optional MCP support is available as an extra:
 
 ```bash
 uv sync --extra mcp
-uv run mlx-ocr-mcp
+uv run mlx4ocr-mcp
 ```
 
 The MCP server exposes an `ocr_markdown` tool that reads a local image path and
@@ -261,10 +269,10 @@ This repository includes an agent skill for compatible coding agents. Install it
 with `npx skills`:
 
 ```bash
-npx skills add shuuul/mlx-ocr
+npx skills add shuuul/mlx4ocr
 ```
 
-After installation, compatible agents can use the skill to run `mlx-ocr`
+After installation, compatible agents can use the skill to run `mlx4ocr`
 directly from GitHub with `uvx` or `uv tool` on macOS.
 
 ## Model variants

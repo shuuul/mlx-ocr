@@ -933,64 +933,6 @@ wheels = [
 ]
 
 [[package]]
-name = "mlx-ocr"
-version = "0.1.0"
-source = { editable = "." }
-dependencies = [
-    { name = "huggingface-hub" },
-    { name = "mlx" },
-    { name = "numpy" },
-    { name = "pillow" },
-    { name = "pymupdf" },
-    { name = "pyyaml" },
-    { name = "safetensors" },
-    { name = "typer" },
-]
-
-[package.optional-dependencies]
-mcp = [
-    { name = "mcp" },
-]
-vlm = [
-    { name = "mlx-vlm" },
-]
-
-[package.dev-dependencies]
-dev = [
-    { name = "opencv-python-headless" },
-    { name = "prek" },
-    { name = "pyclipper" },
-    { name = "pytest" },
-    { name = "ruff" },
-    { name = "shapely" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "huggingface-hub", specifier = ">=1.20.1" },
-    { name = "mcp", marker = "extra == 'mcp'", specifier = ">=1.23.0" },
-    { name = "mlx", specifier = ">=0.31.2" },
-    { name = "mlx-vlm", marker = "extra == 'vlm'", specifier = ">=0.6.3" },
-    { name = "numpy", specifier = ">=2.4.6" },
-    { name = "pillow", specifier = ">=12.2.0" },
-    { name = "pymupdf", specifier = ">=1.26.0" },
-    { name = "pyyaml", specifier = ">=6.0.2" },
-    { name = "safetensors", specifier = ">=0.8.0" },
-    { name = "typer", specifier = ">=0.20.0" },
-]
-provides-extras = ["mcp", "vlm"]
-
-[package.metadata.requires-dev]
-dev = [
-    { name = "opencv-python-headless", specifier = ">=4.8" },
-    { name = "prek", specifier = ">=0.4.3" },
-    { name = "pyclipper", specifier = ">=1.3" },
-    { name = "pytest", specifier = ">=8.0" },
-    { name = "ruff", specifier = ">=0.9" },
-    { name = "shapely", specifier = ">=2.0" },
-]
-
-[[package]]
 name = "mlx-vlm"
 version = "0.6.3"
 source = { registry = "https://pypi.org/simple" }
@@ -1014,6 +956,64 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/a3/60/e774080c90dd5a9d6ed51e3ff1c145243199048714bbca61cdf65e278a69/mlx_vlm-0.6.3.tar.gz", hash = "sha256:f5541eb7c22345a951f7fb78376ed80e8e42bd7c179fb0daa40a21592c7b2adb", size = 1360405, upload-time = "2026-06-10T18:06:34.457Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/95/47/196df650f46f046060c695c3b2378e09afdbe132abfbff7d6fce076b4968/mlx_vlm-0.6.3-py3-none-any.whl", hash = "sha256:27cf5afcaceb1bf7fb66e9a21f8d7344b1ac3964ff8908a5318fe5191dab7ff6", size = 1624640, upload-time = "2026-06-10T18:06:32.799Z" },
+]
+
+[[package]]
+name = "mlx4ocr"
+version = "0.1.1"
+source = { editable = "." }
+dependencies = [
+    { name = "huggingface-hub" },
+    { name = "mlx" },
+    { name = "numpy" },
+    { name = "opencv-python-headless" },
+    { name = "pillow" },
+    { name = "pyclipper" },
+    { name = "pymupdf" },
+    { name = "pyyaml" },
+    { name = "safetensors" },
+    { name = "shapely" },
+    { name = "typer" },
+]
+
+[package.optional-dependencies]
+mcp = [
+    { name = "mcp" },
+]
+vlm = [
+    { name = "mlx-vlm" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "prek" },
+    { name = "pytest" },
+    { name = "ruff" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "huggingface-hub", specifier = ">=1.20.1" },
+    { name = "mcp", marker = "extra == 'mcp'", specifier = ">=1.23.0" },
+    { name = "mlx", specifier = ">=0.31.2" },
+    { name = "mlx-vlm", marker = "extra == 'vlm'", specifier = ">=0.6.3" },
+    { name = "numpy", specifier = ">=2.4.6" },
+    { name = "opencv-python-headless", specifier = ">=4.8" },
+    { name = "pillow", specifier = ">=12.2.0" },
+    { name = "pyclipper", specifier = ">=1.3" },
+    { name = "pymupdf", specifier = ">=1.26.0" },
+    { name = "pyyaml", specifier = ">=6.0.2" },
+    { name = "safetensors", specifier = ">=0.8.0" },
+    { name = "shapely", specifier = ">=2.0" },
+    { name = "typer", specifier = ">=0.20.0" },
+]
+provides-extras = ["mcp", "vlm"]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "prek", specifier = ">=0.4.3" },
+    { name = "pytest", specifier = ">=8.0" },
+    { name = "ruff", specifier = ">=0.9" },
 ]
 
 [[package]]

@@ -1,4 +1,4 @@
-# mlx-ocr Agent Guide
+# mlx4ocr Agent Guide
 
 ## Project Goal
 
